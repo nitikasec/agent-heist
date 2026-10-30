@@ -9,7 +9,7 @@ MCP tool server with a real-world security mistake. Chat with the agent, exploit
 
 ```bash
 # needs Python 3.12+ and uv (https://docs.astral.sh/uv/)
-git clone <this repo> && cd damn-vulnerable-mcp
+git clone https://github.com/singhanushaka59/damn-vulnerable-mcp.git && cd damn-vulnerable-mcp
 uv sync
 export ANTHROPIC_API_KEY=sk-ant-...
 
