@@ -5,6 +5,11 @@ MCP tool server with a real-world security mistake. Chat with the agent, exploit
 
 > ⚠️ Everything here is intentionally insecure. Run it locally for learning. Never deploy it.
 
+## Prerequisites
+- **Python 3.12+** and [**uv**](https://docs.astral.sh/uv/) (or Docker).
+- An **Anthropic API key** (`ANTHROPIC_API_KEY`) to *play* a level — the agent calls the Claude API,
+  so running levels **incurs API usage costs**. (The test suite runs **without** a key.)
+
 ## Quick start
 
 ```bash
@@ -61,3 +66,13 @@ uv run pytest
 ```
 
 Tests run without an API key: they call the MCP servers directly and use a fake Claude client.
+
+## Limitations & scope
+- **Educational only.** This is a deliberately vulnerable teaching lab. **Do not deploy it in
+  production or expose it to untrusted networks** — the vulnerable levels are insecure by design.
+- **Implemented levels:** **Level 1 — The Trusting Helpdesk** is implemented, with a hardened
+  `secure/` reference. Further attack classes (indirect prompt injection, tool poisoning, secret
+  exfiltration, rug-pull tools) are **planned but not yet implemented**.
+- **Requires an Anthropic API key** to play levels, and API usage **costs money**. Tests do not.
+- **Not a scanner or benchmark.** It teaches AI-agent/MCP attack and defense patterns by example;
+  it does not assess or score real systems.
