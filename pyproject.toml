@@ -1,0 +1,27 @@
+[project]
+name = "dvmcp"
+version = "0.1.0"
+description = "A deliberately vulnerable AI agent + MCP lab for learning agent security"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "anthropic>=2.3.0",
+    "mcp>=2.3.0",
+]
+
+[project.scripts]
+dvmcp = "dvmcp.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.10.0,<0.11.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "pytest-asyncio>=1.4.1",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
