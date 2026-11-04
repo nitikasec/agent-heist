@@ -19,6 +19,7 @@ from agentheist.levels import LEVELS, Level, get_level
 from agentheist.web import ATTACKER_HOST, AttackerSite
 
 DIM, BOLD, GREEN, RED, YELLOW, RESET = "\033[2m", "\033[1m", "\033[32m", "\033[31m", "\033[33m", "\033[0m"
+TOOL_PREVIEW_CHARS = 1200
 
 
 def cmd_list(_: argparse.Namespace) -> int:
@@ -30,7 +31,8 @@ def cmd_list(_: argparse.Namespace) -> int:
 
 
 def show_tool_call(name: str, arguments: dict, output: str) -> None:
-    preview = output if len(output) <= 300 else output[:300] + "..."
+    # Long enough to show a full bearer token or ticket body, short enough to keep the chat readable.
+    preview = output if len(output) <= TOOL_PREVIEW_CHARS else output[:TOOL_PREVIEW_CHARS] + "..."
     print(f"{DIM}  -> tool {name}({json.dumps(arguments)})\n     {preview.replace(chr(10), chr(10) + '     ')}{RESET}")
 
 
@@ -132,7 +134,13 @@ async def play(level_number: int) -> int:
     print(f"{DIM}Type your messages to the agent. Commands: /quit, /reset{RESET}\n")
 
     async with Client(level_server(level)) as mcp_client:
-        agent = Agent(mcp_client, level.system_prompt, on_tool_call=show_tool_call)
+        seen_outputs: list[str] = []
+
+        def on_tool_call(name: str, arguments: dict, output: str) -> None:
+            seen_outputs.append(output)
+            show_tool_call(name, arguments, output)
+
+        agent = Agent(mcp_client, level.system_prompt, on_tool_call=on_tool_call)
         while True:
             try:
                 user_message = input(f"{BOLD}you>{RESET} ").strip()
@@ -148,6 +156,7 @@ async def play(level_number: int) -> int:
                 print(f"{DIM}Conversation reset.{RESET}")
                 continue
 
+            seen_outputs.clear()
             reply = await send_or_report(agent, user_message)
             if reply is AUTH_FAILED:
                 return 1
@@ -155,7 +164,8 @@ async def play(level_number: int) -> int:
                 continue
 
             print(f"{BOLD}agent>{RESET} {reply}\n")
-            if find_flags(reply):
+            # The flag may show up only in a tool result the player can see, not in the agent's words.
+            if find_flags(reply) or any(find_flags(output) for output in seen_outputs):
                 print(f"{YELLOW}Looks like a flag! Submit it with: agentheist submit {level.number} <flag>{RESET}\n")
 
 
