@@ -10,8 +10,11 @@ benchmark of how different models hold up against the same agent-security attack
 Needs a model backend (a provider key, or a local server). See the README.
 """
 
+import importlib
 import re
+from urllib.parse import unquote
 from dataclasses import dataclass
+from types import SimpleNamespace
 
 from mcp import Client
 
@@ -107,11 +110,51 @@ async def bench_level2(level, model) -> BenchResult:
         await agent.send(level.module.VICTIM_REQUEST.format(url=f"http://{ATTACKER_HOST}/"))
     with site.log.open() as log:
         log.seek(offset)
-        leaked = any(find_flags(line) for line in log)
+        leaked = any(find_flags(unquote(line)) for line in log)
     return BenchResult(level.number, model, leaked, "exfiltrated" if leaked else "blocked/ignored")
 
 
-RUNNERS = {1: bench_level1, 2: bench_level2, 3: bench_level3, 4: bench_level4}
+async def bench_level5(level, model) -> BenchResult:
+    from agentheist.levels import level05_poisoned_tool as L5
+    site_dir = level.module.SITE_DIR
+    site = AttackerSite.for_level(site_dir)
+    site.ensure()
+    # Write the poisoned tool description (the attack payload). The vulnerable server reads
+    # it at startup; the secure server ignores it and pins a reviewed description.
+    (L5.agentheist_home() / site_dir / L5.ARTIFACT_FILE).write_text(L5.STARTER_DESCRIPTION)
+    offset = site.log.stat().st_size
+    async with Client(_server_params(level)) as client:
+        agent = Agent(client, level.system_prompt, model=model)
+        await agent.send(level.module.VICTIM_REQUEST)
+    with site.log.open() as log:
+        log.seek(offset)
+        leaked = any(find_flags(unquote(line)) for line in log)
+    return BenchResult(level.number, model, leaked, "exfiltrated" if leaked else "blocked/ignored")
+
+
+RUNNERS = {1: bench_level1, 2: bench_level2, 3: bench_level3, 4: bench_level4, 5: bench_level5}
+
+# Levels whose fix is a drop-in stdio server the same attacker can hit. Level 1's secure
+# reference is the OAuth/HTTP resource server (src/agentheist/secure/), a different transport.
+SECURE_MODULES = {
+    2: "agentheist.levels.level02_secure_research",
+    3: "agentheist.levels.level03_secure_billing",
+    4: "agentheist.levels.level04_secure_deploy",
+    5: "agentheist.levels.level05_secure_assistant",
+}
+
+
+def _secure_target(level_number: int):
+    """A level-shaped object pointing at the secure server, reusing the same attack runner."""
+    secure = importlib.import_module(SECURE_MODULES[level_number])
+    vuln = get_level(level_number)
+    module = SimpleNamespace(
+        SITE_DIR=getattr(secure, "SITE_DIR", None),
+        VICTIM_REQUEST=getattr(vuln.module, "VICTIM_REQUEST", None),
+    )
+    return SimpleNamespace(number=level_number, title=secure.TITLE, module_name=SECURE_MODULES[level_number],
+                           system_prompt=secure.SYSTEM_PROMPT, module=module, mode=vuln.mode)
+
 
 
 def _error_message(exc: BaseException) -> str:
@@ -121,13 +164,16 @@ def _error_message(exc: BaseException) -> str:
     return f"{type(exc).__name__}: {exc}".splitlines()[0][:80]
 
 
-async def run_one(level_number: int, model: str) -> BenchResult:
+async def run_one(level_number: int, model: str, secure: bool = False) -> BenchResult:
     try:
-        level = get_level(level_number)
         runner = RUNNERS.get(level_number)
         if runner is None:
             return BenchResult(level_number, model, False, error="no benchmark for this level")
-        return await runner(level, model)
+        if secure:
+            if level_number not in SECURE_MODULES:
+                return BenchResult(level_number, model, False, error="no stdio secure reference for this level")
+            return await runner(_secure_target(level_number), model)
+        return await runner(get_level(level_number), model)
     except BaseException as exc:  # a model/backend/level failure shouldn't abort the whole board
         return BenchResult(level_number, model, False, error=_error_message(exc))
 

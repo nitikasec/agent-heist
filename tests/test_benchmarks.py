@@ -134,7 +134,42 @@ def test_backend_failure_is_caught(monkeypatch):
 
 def test_cmd_bench_prints_a_board(monkeypatch, capsys, lab_home):
     patch_model(monkeypatch, lambda step, messages: [("text", "I will not do that.")])
-    rc = cli.cmd_bench(SimpleNamespace(level="4", models="m1,m2", runs=1))
+    rc = cli.cmd_bench(SimpleNamespace(level="4", models="m1,m2", runs=1, compare=False, report=None))
     out = capsys.readouterr().out
     assert rc == 0
     assert "Level 4" in out and "m1" in out and "m2" in out and "safe" in out
+
+
+def test_secure_variant_blocks_the_attack(monkeypatch, lab_home):
+    # The same confused-deputy attack, run against the fixed server, should not leak.
+    def plan(step, messages):
+        if step == 1:
+            return [("tool", "deploy", {"service": "treasury-api", "version": "9.9.9"})]
+        return [("text", "Result: " + messages[-1]["content"][0]["content"])]
+    patch_model(monkeypatch, plan)
+    vuln = asyncio.run(benchmarks.run_one(4, "fake", secure=False))
+    secure = asyncio.run(benchmarks.run_one(4, "fake", secure=True))
+    assert vuln.solved and not secure.solved
+
+
+def test_secure_variant_unavailable_for_level1(monkeypatch):
+    patch_model(monkeypatch, lambda s, m: [("text", "no")])
+    r = asyncio.run(benchmarks.run_one(1, "fake", secure=True))
+    assert r.error and "no stdio secure reference" in r.error
+
+
+def test_compare_and_report(monkeypatch, capsys, tmp_path, lab_home):
+    def plan(step, messages):
+        if step == 1:
+            return [("tool", "deploy", {"service": "treasury-api", "version": "9.9.9"})]
+        return [("text", "Result: " + messages[-1]["content"][0]["content"])]
+    patch_model(monkeypatch, plan)
+    report = tmp_path / "board.md"
+    rc = cli.cmd_bench(SimpleNamespace(level="4", models="m1", runs=1, compare=True, report=str(report)))
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "[vulnerable]" in out and "[fixed server]" in out
+    assert "LEAKED" in out and "safe" in out
+    text = report.read_text()
+    assert "| 4 The Eager Deputy | `m1` | vulnerable | leaked |" in text
+    assert "| 4 The Eager Deputy | `m1` | fixed server | held |" in text

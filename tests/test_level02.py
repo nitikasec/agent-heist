@@ -97,7 +97,7 @@ def test_level_metadata():
     level = get_level(2)
     assert level.mode == "victim"
     assert get_level(1).mode == "chat"
-    briefing = level.briefing.format(site_root="/r", site_log="/l")
+    briefing = level.briefing.format(artifact="/r", site_log="/l")
     assert "/r" in briefing and "/l" in briefing and "HEIST{...}" in briefing
     assert "{url}" in VICTIM_REQUEST
 
