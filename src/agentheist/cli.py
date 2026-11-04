@@ -12,7 +12,9 @@ from mcp import Client, StdioServerParameters
 from mcp.client.stdio import get_default_environment
 
 from agentheist.agent import Agent
+from agentheist.backends import BackendError
 from agentheist.flags import check_flag, find_flags, load_progress, mark_solved
+from agentheist.hints import hint
 from agentheist.levels import LEVELS, Level, get_level
 from agentheist.web import ATTACKER_HOST, AttackerSite
 
@@ -53,6 +55,9 @@ async def send_or_report(agent: Agent, message: str) -> str | object | None:
         return None
     except anthropic.APIStatusError as exc:
         print(f"{RED}API error {exc.status_code}: {exc.message}{RESET}")
+        return None
+    except BackendError as exc:
+        print(f"{RED}{exc}{RESET}")
         return None
 
 
@@ -168,6 +173,14 @@ def cmd_submit(args: argparse.Namespace) -> int:
     return 1
 
 
+def cmd_hint(args: argparse.Namespace) -> int:
+    get_level(args.level)
+    print(f"{YELLOW}Hint {args.tier}/3 for level {args.level}:{RESET} {hint(args.level, args.tier)}")
+    if args.tier < 3:
+        print(f"{DIM}Still stuck? agentheist hint {args.level} {args.tier + 1}{RESET}")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(prog="agentheist", description="Agent Heist - a hackable AI agent lab")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -179,6 +192,10 @@ def main() -> int:
     submit_parser.add_argument("level", type=int)
     submit_parser.add_argument("flag")
     submit_parser.set_defaults(func=cmd_submit)
+    hint_parser = sub.add_parser("hint", help="get a hint (tier 1 = nudge, 3 = nearly the answer)")
+    hint_parser.add_argument("level", type=int)
+    hint_parser.add_argument("tier", type=int, nargs="?", default=1)
+    hint_parser.set_defaults(func=cmd_hint)
 
     args = parser.parse_args()
     try:

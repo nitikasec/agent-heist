@@ -4,14 +4,15 @@ The agent itself is intentionally ordinary. The vulnerabilities live in how each
 level wires prompts, tools and trust together, which is what real deployments get wrong.
 """
 
-import os
 from collections.abc import Callable
 from typing import Any
 
 import anthropic
 from mcp import Client
 
-DEFAULT_MODEL = "claude-opus-5-5"
+from agentheist.backends import DEFAULT_CLAUDE_MODEL, default_model, make_client
+
+DEFAULT_MODEL = DEFAULT_CLAUDE_MODEL
 # Models that accept server-side refusal fallbacks (`fallbacks: "default"`).
 FALLBACK_MODELS = {"claude-fable-5-1", "claude-opus-5-5", "claude-opus-5", "claude-sonnet-5-5"}
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
@@ -38,8 +39,8 @@ class Agent:
     ):
         self.mcp = mcp_client
         self.system_prompt = system_prompt
-        self.claude = claude or anthropic.AsyncAnthropic()
-        self.model = model or os.environ.get("AGENTHEIST_MODEL", DEFAULT_MODEL)
+        self.claude = claude or make_client()
+        self.model = model or default_model()
         self.on_tool_call = on_tool_call
         self.messages: list[dict[str, Any]] = []
         self._tools: list[dict[str, Any]] | None = None

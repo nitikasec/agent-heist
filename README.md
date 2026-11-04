@@ -35,7 +35,20 @@ uv run agentheist list          # see levels and progress
 uv run agentheist play 1        # chat with level 1's agent
 uv run agentheist submit 1 'HEIST{...}'
 uv run agentheist play 2        # attack a victim's agent through a web page you control
+uv run agentheist hint 3        # stuck? tier 1 is a nudge, `hint 3 3` nearly gives it away
 ```
+
+### Play for free with a local model
+No API key? Any OpenAI-compatible server works: [Ollama](https://ollama.com), LM Studio, llama.cpp, vLLM.
+
+```bash
+ollama pull qwen3:4b
+AGENTHEIST_PROVIDER=openai AGENTHEIST_MODEL=qwen3:4b uv run agentheist play 1
+# other servers: set AGENTHEIST_BASE_URL (default http://localhost:11434/v1) and AGENTHEIST_API_KEY if needed
+```
+
+Small local models fall for some attacks more easily than Claude and resist others. Comparing them
+is part of the fun. Pick a model that supports tool calling.
 
 Or with Docker:
 
@@ -63,7 +76,8 @@ hold up against the same attack is half the fun.
 |---|------|--------------|
 | 1 | The Trusting Helpdesk | Authorization delegated to the LLM |
 | 2 | The Poisoned Page | Indirect prompt injection and data exfiltration (the "lethal trifecta") |
-| 3+ | coming soon | tool poisoning, rug-pull tool updates, confused deputy, token passthrough... |
+| 3 | The Helpful Integration | Token passthrough and credentials leaking through tool output |
+| 4+ | coming soon | confused deputy, rug-pull tool updates, approval-prompt spoofing, SSRF... |
 
 **Level 2 is different:** you don't chat with the agent. A simulated victim asks her assistant to
 review a web page, and you write that page. Files you put in `~/.agentheist/level02/site/` are served at
@@ -77,6 +91,8 @@ Fixed versions:
   [`src/agentheist/secure/README.md`](src/agentheist/secure/README.md).
 - Level 2, with secret isolation, taint-based egress control and untrusted-content labeling:
   `src/agentheist/levels/level02_secure_research.py` (spoilers, read the write-up first).
+- Level 3, with caller authentication, per-caller token exchange, server-side delegation and redaction:
+  `src/agentheist/levels/level03_secure_billing.py` (spoilers).
 
 ## How it works
 
@@ -108,10 +124,11 @@ Tests run without an API key: they call the MCP servers directly and use a fake 
 - **Educational only.** This is a deliberately vulnerable teaching lab. **Do not deploy it in
   production or expose it to untrusted networks** — the vulnerable levels are insecure by design.
 - **Implemented levels:** **Level 1, The Trusting Helpdesk** (with a hardened `secure/` reference)
-  and **Level 2, The Poisoned Page** (with a secure reference server). Further attack classes
-  (tool poisoning, rug-pull tools, confused deputy, token passthrough) are **planned but not yet
-  implemented**.
-- **Requires an Anthropic API key** to play levels, and API usage **costs money**. Tests do not.
+  **Level 2, The Poisoned Page** and **Level 3, The Helpful Integration** (each with a secure reference
+  server). Further attack classes (confused deputy, rug-pull tools, approval-prompt spoofing, SSRF) are
+  **planned but not yet implemented**.
+- **Playing needs a model:** an Anthropic API key (usage **costs money**) or a free local model
+  through any OpenAI-compatible server. Tests need neither.
 - **Not a scanner or benchmark.** It teaches AI-agent/MCP attack and defense patterns by example;
   it does not assess or score real systems.
 
