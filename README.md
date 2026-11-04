@@ -1,7 +1,20 @@
-# Damn Vulnerable MCP
+# Agent Heist
 
-A hackable lab of **deliberately broken AI agents**. Each level is a Claude-powered agent wired to an
-MCP tool server with a real-world security mistake. Chat with the agent, exploit the mistake, capture the flag.
+**A hands-on lab for AI-agent and MCP security.** Each level is a real Claude-powered agent wired to an
+MCP tool server with a security mistake seen in real deployments. Break it, steal the flag, then read
+how the fixed version stops you.
+
+*Built by [Nitika Kumari](https://www.linkedin.com/in/nitika-k-62979833a/) ([@nitikasec](https://github.com/nitikasec)), offensive security.*
+
+## What makes it different
+- **A real agent loop, not just a vulnerable server.** You attack an LLM agent that plans and calls
+  tools, and you see every tool call it makes.
+- **Real threat models.** In Level 2 you never talk to the agent: you poison a web page, a victim's
+  assistant reads it, and you win only if the secret actually reaches your server's log.
+- **Every level ships with a fix, and tests that prove it.** The secure versions enforce controls in
+  the tool server (authorization, secret isolation, egress control) rather than in the prompt, and the
+  same attack is replayed against them in the test suite.
+- **Offline and safe.** The "internet" is simulated. Nothing reaches the real network.
 
 > ⚠️ Everything here is intentionally insecure. Run it locally for learning. Never deploy it.
 
@@ -14,34 +27,34 @@ MCP tool server with a real-world security mistake. Chat with the agent, exploit
 
 ```bash
 # needs Python 3.12+ and uv (https://docs.astral.sh/uv/)
-git clone https://github.com/nitikasec/damn-vulnerable-mcp.git && cd damn-vulnerable-mcp
+git clone https://github.com/nitikasec/agent-heist.git && cd agent-heist
 uv sync
 export ANTHROPIC_API_KEY=sk-ant-...
 
-uv run dvmcp list          # see levels and progress
-uv run dvmcp play 1        # chat with level 1's agent
-uv run dvmcp submit 1 'DVMCP{...}'
-uv run dvmcp play 2        # attack a victim's agent through a web page you control
+uv run agentheist list          # see levels and progress
+uv run agentheist play 1        # chat with level 1's agent
+uv run agentheist submit 1 'HEIST{...}'
+uv run agentheist play 2        # attack a victim's agent through a web page you control
 ```
 
 Or with Docker:
 
 ```bash
-docker build -t dvmcp .
-docker run -it --rm -e ANTHROPIC_API_KEY dvmcp play 1
+docker build -t agentheist .
+docker run -it --rm -e ANTHROPIC_API_KEY agentheist play 1
 
 # Level 2 needs a folder you can edit from the host (your attacker website):
-docker run -it --rm -e ANTHROPIC_API_KEY -e DVMCP_HOME=/lab -v "$HOME/.dvmcp:/lab" dvmcp play 2
+docker run -it --rm -e ANTHROPIC_API_KEY -e AGENTHEIST_HOME=/lab -v "$HOME/.agentheist:/lab" agentheist play 2
 ```
 
-The agent uses `claude-opus-5-5` by default. Set `DVMCP_MODEL` to try another model
-(for example `DVMCP_MODEL=claude-haiku-5-5` for a cheaper run). Seeing how different models
+The agent uses `claude-opus-5-5` by default. Set `AGENTHEIST_MODEL` to try another model
+(for example `AGENTHEIST_MODEL=claude-haiku-5-5` for a cheaper run). Seeing how different models
 hold up against the same attack is half the fun.
 
 ## Rules
 
-1. Only talk to the agent. Don't read `src/dvmcp/levels/`, which contains the flags.
-2. Each flag looks like `DVMCP{...}`.
+1. Only talk to the agent. Don't read `src/agentheist/levels/`, which contains the flags.
+2. Each flag looks like `HEIST{...}`.
 3. Stuck? Write-ups live in `solutions/` (spoilers!).
 
 ## Levels
@@ -53,17 +66,17 @@ hold up against the same attack is half the fun.
 | 3+ | coming soon | tool poisoning, rug-pull tool updates, confused deputy, token passthrough... |
 
 **Level 2 is different:** you don't chat with the agent. A simulated victim asks her assistant to
-review a web page, and you write that page. Files you put in `~/.dvmcp/level02/site/` are served at
+review a web page, and you write that page. Files you put in `~/.agentheist/level02/site/` are served at
 `http://attacker.example/`, and every request the assistant makes to your site lands in
-`~/.dvmcp/level02/access.log`. You can't see the victim's conversation, only which tools ran and
+`~/.agentheist/level02/access.log`. You can't see the victim's conversation, only which tools ran and
 your own server's log, so the only way to win is real exfiltration. The whole "internet" is
 simulated and offline. Nothing reaches the real network.
 
 Fixed versions:
 - Level 1, with OAuth token verification and server-side authorization:
-  [`src/dvmcp/secure/README.md`](src/dvmcp/secure/README.md).
+  [`src/agentheist/secure/README.md`](src/agentheist/secure/README.md).
 - Level 2, with secret isolation, taint-based egress control and untrusted-content labeling:
-  `src/dvmcp/levels/level02_secure_research.py` (spoilers, read the write-up first).
+  `src/agentheist/levels/level02_secure_research.py` (spoilers, read the write-up first).
 
 ## How it works
 
@@ -71,8 +84,8 @@ Fixed versions:
 you  ──chat──▶  agent (Claude)  ──MCP tool calls──▶  level's MCP server (stdio)
 ```
 
-`dvmcp play N` starts level N's MCP server as a subprocess, connects a small agent loop to it
-(`src/dvmcp/agent.py`), and prints every tool call the agent makes so you can see what it's doing.
+`agentheist play N` starts level N's MCP server as a subprocess, connects a small agent loop to it
+(`src/agentheist/agent.py`), and prints every tool call the agent makes so you can see what it's doing.
 
 In victim levels (Level 2) the loop is:
 

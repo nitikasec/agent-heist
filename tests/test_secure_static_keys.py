@@ -8,7 +8,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec, rsa
 from secure_support import ISSUER, READ, RESOURCE, TestIdentityProvider
 
-from dvmcp.secure.auth import ConfigurationError, JWTTokenVerifier, StaticPublicKey
+from agentheist.secure.auth import ConfigurationError, JWTTokenVerifier, StaticPublicKey
 
 
 def verifier_for(idp: TestIdentityProvider) -> JWTTokenVerifier:

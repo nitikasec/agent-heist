@@ -1,6 +1,6 @@
 """Flag checking and local progress tracking.
 
-Flags are stored as SHA-256 hashes so `dvmcp submit` can verify them without
+Flags are stored as SHA-256 hashes so `agentheist submit` can verify them without
 printing the answer.
 """
 
@@ -9,14 +9,14 @@ import json
 import re
 from pathlib import Path
 
-FLAG_PATTERN = re.compile(r"DVMCP\{[^}\s]+\}")
+FLAG_PATTERN = re.compile(r"HEIST\{[^}\s]+\}")
 
 FLAG_HASHES = {
-    1: "169987780150f951a2f2955562de9dd8ef8c79265011f109bf67ec9eb693a7d0",
-    2: "1919bf3017c83766c6cf2011d25455ef2bbbd49f3c1ec54fd10f2a9866c2f768",
+    1: "9107d5b48eddcd55c9bc11a03f6f49ed37b7b96359d252a47625b2a0815613fe",
+    2: "bfb42bc83886bd31ebe4dbd5a55b6f967172f0c7ec7c7354de8a8ed44d27c6ea",
 }
 
-PROGRESS_FILE = Path.home() / ".dvmcp" / "progress.json"
+PROGRESS_FILE = Path.home() / ".agentheist" / "progress.json"
 
 
 def check_flag(level: int, flag: str) -> bool:

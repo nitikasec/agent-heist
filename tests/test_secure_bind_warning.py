@@ -6,10 +6,10 @@ import httpx2
 import pytest
 from secure_support import ISSUER, READ, RESOURCE, TestIdentityProvider, directory_json, running, write_private_file
 
-from dvmcp.secure import __main__ as entrypoint
-from dvmcp.secure.auth import ConfigurationError
-from dvmcp.secure.config import SecureConfig
-from dvmcp.secure.helpdesk import build_server
+from agentheist.secure import __main__ as entrypoint
+from agentheist.secure.auth import ConfigurationError
+from agentheist.secure.config import SecureConfig
+from agentheist.secure.helpdesk import build_server
 
 LOOPBACK = ["127.0.0.1", "localhost", "::1"]
 # 127.0.0.2, LOCALHOST and "localhost." are loopback in practice, but the SDK only enables its
@@ -41,8 +41,8 @@ def test_other_hosts_warn(host):
 
 def test_default_host_is_loopback():
     assert SecureConfig.from_env({
-        "DVMCP_SECURE_ISSUER": ISSUER, "DVMCP_SECURE_RESOURCE_URL": RESOURCE,
-        "DVMCP_SECURE_PUBLIC_KEY_FILE": "k.pem", "DVMCP_SECURE_DIRECTORY_FILE": "p.json",
+        "AGENTHEIST_SECURE_ISSUER": ISSUER, "AGENTHEIST_SECURE_RESOURCE_URL": RESOURCE,
+        "AGENTHEIST_SECURE_PUBLIC_KEY_FILE": "k.pem", "AGENTHEIST_SECURE_DIRECTORY_FILE": "p.json",
     }).startup_warnings() == []
 
 
@@ -50,9 +50,9 @@ def test_default_host_is_loopback():
 def test_empty_host_is_refused(host):
     with pytest.raises(ConfigurationError, match="Host must not be empty"):
         SecureConfig.from_env({
-            "DVMCP_SECURE_ISSUER": ISSUER, "DVMCP_SECURE_RESOURCE_URL": RESOURCE,
-            "DVMCP_SECURE_PUBLIC_KEY_FILE": "k.pem", "DVMCP_SECURE_DIRECTORY_FILE": "p.json",
-            "DVMCP_SECURE_HOST": host,
+            "AGENTHEIST_SECURE_ISSUER": ISSUER, "AGENTHEIST_SECURE_RESOURCE_URL": RESOURCE,
+            "AGENTHEIST_SECURE_PUBLIC_KEY_FILE": "k.pem", "AGENTHEIST_SECURE_DIRECTORY_FILE": "p.json",
+            "AGENTHEIST_SECURE_HOST": host,
         })
 
 
@@ -65,12 +65,12 @@ def idp():
 def server_env(tmp_path, idp, monkeypatch):
     key_file = write_private_file(tmp_path / "issuer-public.pem", idp.public_pem())
     directory = write_private_file(tmp_path / "principals.json", directory_json(("sam", ["staff"])))
-    for name, value in {"DVMCP_SECURE_ISSUER": ISSUER, "DVMCP_SECURE_RESOURCE_URL": RESOURCE,
-                        "DVMCP_SECURE_PUBLIC_KEY_FILE": str(key_file),
-                        "DVMCP_SECURE_DIRECTORY_FILE": str(directory)}.items():
+    for name, value in {"AGENTHEIST_SECURE_ISSUER": ISSUER, "AGENTHEIST_SECURE_RESOURCE_URL": RESOURCE,
+                        "AGENTHEIST_SECURE_PUBLIC_KEY_FILE": str(key_file),
+                        "AGENTHEIST_SECURE_DIRECTORY_FILE": str(directory)}.items():
         monkeypatch.setenv(name, value)
-    for name in ("DVMCP_SECURE_JWKS_URL", "DVMCP_SECURE_JWKS_CA_FILE", "DVMCP_SECURE_DEBUG",
-                 "DVMCP_SECURE_MAX_TOKEN_LIFETIME_SECONDS", "DVMCP_SECURE_PORT"):
+    for name in ("AGENTHEIST_SECURE_JWKS_URL", "AGENTHEIST_SECURE_JWKS_CA_FILE", "AGENTHEIST_SECURE_DEBUG",
+                 "AGENTHEIST_SECURE_MAX_TOKEN_LIFETIME_SECONDS", "AGENTHEIST_SECURE_PORT"):
         monkeypatch.delenv(name, raising=False)
     started = []
     monkeypatch.setattr(entrypoint.uvicorn, "run", lambda app, **kwargs: started.append(kwargs))
@@ -80,11 +80,11 @@ def server_env(tmp_path, idp, monkeypatch):
 @pytest.mark.parametrize("host, warns", [("127.0.0.1", False), ("::1", False), ("0.0.0.0", True),
                                          ("127.0.0.2", True)])
 def test_entrypoint_logs_the_warning_before_serving(server_env, monkeypatch, caplog, host, warns):
-    monkeypatch.setenv("DVMCP_SECURE_HOST", host)
-    caplog.set_level(logging.WARNING, logger="dvmcp.secure")
+    monkeypatch.setenv("AGENTHEIST_SECURE_HOST", host)
+    caplog.set_level(logging.WARNING, logger="agentheist.secure")
     assert entrypoint.main() == 0
     assert server_env == [{"host": host, "port": 8000}]
-    warnings = [r for r in caplog.records if r.name == "dvmcp.secure" and r.levelno == logging.WARNING]
+    warnings = [r for r in caplog.records if r.name == "agentheist.secure" and r.levelno == logging.WARNING]
     assert len(warnings) == int(warns)
     if warns:
         assert repr(host) in warnings[0].getMessage()
@@ -93,7 +93,7 @@ def test_entrypoint_logs_the_warning_before_serving(server_env, monkeypatch, cap
 @pytest.mark.parametrize("host, status", [("127.0.0.1", 421), ("0.0.0.0", 200)])
 async def test_warning_describes_real_sdk_behaviour(server_env, monkeypatch, idp, host, status):
     """The reason for the warning: off loopback, the SDK no longer rejects a foreign Host header."""
-    monkeypatch.setenv("DVMCP_SECURE_HOST", host)
+    monkeypatch.setenv("AGENTHEIST_SECURE_HOST", host)
     cfg = SecureConfig.from_env()
     server = build_server(cfg)
     app = server.streamable_http_app(host=cfg.host)

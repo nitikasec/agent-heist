@@ -1,5 +1,5 @@
 [project]
-name = "dvmcp"
+name = "agentheist"
 version = "0.1.0"
 description = "A deliberately vulnerable AI agent + MCP lab for learning agent security"
 readme = "README.md"
@@ -10,7 +10,7 @@ dependencies = [
 ]
 
 [project.scripts]
-dvmcp = "dvmcp.cli:main"
+agentheist = "agentheist.cli:main"
 
 [build-system]
 requires = ["uv_build>=0.10.0,<0.11.0"]

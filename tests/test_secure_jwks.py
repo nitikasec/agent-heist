@@ -11,8 +11,8 @@ import jwt
 import pytest
 from secure_support import ISSUER, RESOURCE, HangingServer, LocalJWKSServer, TestIdentityProvider, closed_port
 
-from dvmcp.secure import auth
-from dvmcp.secure.auth import ConfigurationError, JWKSKeySource, JWTTokenVerifier
+from agentheist.secure import auth
+from agentheist.secure.auth import ConfigurationError, JWKSKeySource, JWTTokenVerifier
 
 
 @pytest.fixture

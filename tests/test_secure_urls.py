@@ -2,8 +2,8 @@
 
 import pytest
 
-from dvmcp.secure.auth import ConfigurationError
-from dvmcp.secure.config import SecureConfig, validate_url
+from agentheist.secure.auth import ConfigurationError
+from agentheist.secure.config import SecureConfig, validate_url
 
 ISSUER = "https://idp.test.invalid"
 

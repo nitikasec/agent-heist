@@ -8,10 +8,10 @@ from secure_support import (
     BASE_URL, ISSUER, READ, RESOURCE, TestIdentityProvider, directory_json, running, write_private_file,
 )
 
-from dvmcp.secure import auth
-from dvmcp.secure.auth import ConfigurationError, JWTTokenVerifier, StaticPublicKey
-from dvmcp.secure.config import SecureConfig
-from dvmcp.secure.helpdesk import build_server
+from agentheist.secure import auth
+from agentheist.secure.auth import ConfigurationError, JWTTokenVerifier, StaticPublicKey
+from agentheist.secure.config import SecureConfig
+from agentheist.secure.helpdesk import build_server
 
 HEADERS = {"Accept": "application/json, text/event-stream", "Content-Type": "application/json"}
 INITIALIZE = {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
@@ -97,15 +97,15 @@ def test_out_of_range_limits_are_refused(idp, limit):
 def env(tmp_path, idp, **overrides):
     key_file = write_private_file(tmp_path / "issuer-public.pem", idp.public_pem())
     directory = write_private_file(tmp_path / "principals.json", directory_json(("sam", ["staff"])))
-    values = {"DVMCP_SECURE_ISSUER": ISSUER, "DVMCP_SECURE_RESOURCE_URL": RESOURCE,
-              "DVMCP_SECURE_PUBLIC_KEY_FILE": str(key_file), "DVMCP_SECURE_DIRECTORY_FILE": str(directory),
+    values = {"AGENTHEIST_SECURE_ISSUER": ISSUER, "AGENTHEIST_SECURE_RESOURCE_URL": RESOURCE,
+              "AGENTHEIST_SECURE_PUBLIC_KEY_FILE": str(key_file), "AGENTHEIST_SECURE_DIRECTORY_FILE": str(directory),
               **overrides}
     return {key: value for key, value in values.items() if value is not None}
 
 
 @pytest.mark.parametrize("value, expected", [(None, 3600), ("60", 60), (" 900 ", 900), ("86400", 86400)])
 def test_environment_setting_reaches_the_verifier(tmp_path, idp, value, expected):
-    config = SecureConfig.from_env(env(tmp_path, idp, DVMCP_SECURE_MAX_TOKEN_LIFETIME_SECONDS=value))
+    config = SecureConfig.from_env(env(tmp_path, idp, AGENTHEIST_SECURE_MAX_TOKEN_LIFETIME_SECONDS=value))
     assert config.max_token_lifetime_seconds == expected
     assert config.token_verifier().max_token_lifetime_seconds == expected
 
@@ -116,12 +116,12 @@ def test_environment_setting_reaches_the_verifier(tmp_path, idp, value, expected
 ])
 def test_invalid_environment_setting_is_refused(tmp_path, idp, value, message):
     with pytest.raises(ConfigurationError, match=message):
-        SecureConfig.from_env(env(tmp_path, idp, DVMCP_SECURE_MAX_TOKEN_LIFETIME_SECONDS=value))
+        SecureConfig.from_env(env(tmp_path, idp, AGENTHEIST_SECURE_MAX_TOKEN_LIFETIME_SECONDS=value))
 
 
 @pytest.mark.parametrize("lifetime, status", [(900, 200), (901, 401)])
 async def test_limit_is_enforced_over_http(tmp_path, idp, lifetime, status):
-    config = SecureConfig.from_env(env(tmp_path, idp, DVMCP_SECURE_MAX_TOKEN_LIFETIME_SECONDS="900"))
+    config = SecureConfig.from_env(env(tmp_path, idp, AGENTHEIST_SECURE_MAX_TOKEN_LIFETIME_SECONDS="900"))
     server = build_server(config)
     app = server.streamable_http_app(host=config.host)
     now = int(time.time())

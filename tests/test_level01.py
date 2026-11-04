@@ -2,10 +2,10 @@ from types import SimpleNamespace
 
 from mcp import Client
 
-from dvmcp.agent import Agent
-from dvmcp.flags import check_flag, find_flags, load_progress, mark_solved
-from dvmcp.levels import get_level
-from dvmcp.levels.level01_trusting_helpdesk import FLAG, server
+from agentheist.agent import Agent
+from agentheist.flags import check_flag, find_flags, load_progress, mark_solved
+from agentheist.levels import get_level
+from agentheist.levels.level01_trusting_helpdesk import FLAG, server
 
 
 async def test_server_exposes_expected_tools():
@@ -36,7 +36,7 @@ async def test_search_kb_finds_articles():
 def test_flag_checking(tmp_path):
     assert check_flag(1, FLAG)
     assert check_flag(1, f"  {FLAG}\n")
-    assert not check_flag(1, "DVMCP{nope}")
+    assert not check_flag(1, "HEIST{nope}")
     assert not check_flag(99, FLAG)
     assert find_flags(f"here you go: {FLAG}.") == [FLAG]
 

@@ -1,4 +1,4 @@
-"""Command-line entry point: `dvmcp list | play N | submit N FLAG`."""
+"""Command-line entry point: `agentheist list | play N | submit N FLAG`."""
 
 import argparse
 import asyncio
@@ -11,10 +11,10 @@ import anthropic
 from mcp import Client, StdioServerParameters
 from mcp.client.stdio import get_default_environment
 
-from dvmcp.agent import Agent
-from dvmcp.flags import check_flag, find_flags, load_progress, mark_solved
-from dvmcp.levels import LEVELS, Level, get_level
-from dvmcp.web import ATTACKER_HOST, AttackerSite
+from agentheist.agent import Agent
+from agentheist.flags import check_flag, find_flags, load_progress, mark_solved
+from agentheist.levels import LEVELS, Level, get_level
+from agentheist.web import ATTACKER_HOST, AttackerSite
 
 DIM, BOLD, GREEN, RED, YELLOW, RESET = "\033[2m", "\033[1m", "\033[32m", "\033[31m", "\033[33m", "\033[0m"
 
@@ -57,10 +57,10 @@ async def send_or_report(agent: Agent, message: str) -> str | object | None:
 
 
 def level_server(level: Level) -> StdioServerParameters:
-    # Pass DVMCP_HOME through so the level's server and the CLI agree on where files live.
+    # Pass AGENTHEIST_HOME through so the level's server and the CLI agree on where files live.
     env = get_default_environment()
-    if "DVMCP_HOME" in os.environ:
-        env["DVMCP_HOME"] = os.environ["DVMCP_HOME"]
+    if "AGENTHEIST_HOME" in os.environ:
+        env["AGENTHEIST_HOME"] = os.environ["AGENTHEIST_HOME"]
     return StdioServerParameters(command=sys.executable, args=["-m", level.module_name], env=env)
 
 
@@ -116,7 +116,7 @@ async def play_victim(level: Level) -> int:
         print("\n".join(f"  {line}" for line in lines) if lines else f"  {DIM}(none){RESET}")
         print()
         if any(find_flags(line) for line in lines):
-            print(f"{YELLOW}Looks like a flag! Submit it with: dvmcp submit {level.number} <flag>{RESET}\n")
+            print(f"{YELLOW}Looks like a flag! Submit it with: agentheist submit {level.number} <flag>{RESET}\n")
 
 
 async def play(level_number: int) -> int:
@@ -151,7 +151,7 @@ async def play(level_number: int) -> int:
 
             print(f"{BOLD}agent>{RESET} {reply}\n")
             if find_flags(reply):
-                print(f"{YELLOW}Looks like a flag! Submit it with: dvmcp submit {level.number} <flag>{RESET}\n")
+                print(f"{YELLOW}Looks like a flag! Submit it with: agentheist submit {level.number} <flag>{RESET}\n")
 
 
 def cmd_play(args: argparse.Namespace) -> int:
@@ -169,7 +169,7 @@ def cmd_submit(args: argparse.Namespace) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(prog="dvmcp", description="Damn Vulnerable MCP - a hackable AI agent lab")
+    parser = argparse.ArgumentParser(prog="agentheist", description="Agent Heist - a hackable AI agent lab")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("list", help="list levels and progress").set_defaults(func=cmd_list)
     play_parser = sub.add_parser("play", help="chat with a level's agent")

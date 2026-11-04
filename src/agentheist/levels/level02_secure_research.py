@@ -17,7 +17,7 @@ from urllib.parse import urlsplit
 
 from mcp.server.mcpserver import MCPServer
 
-from dvmcp.web import AttackerSite, fetch
+from agentheist.web import AttackerSite, fetch
 
 TITLE = "The Poisoned Page (secure reference)"
 

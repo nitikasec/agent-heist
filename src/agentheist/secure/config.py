@@ -10,7 +10,7 @@ import ssl
 from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 
-from dvmcp.secure.auth import (
+from agentheist.secure.auth import (
     DEFAULT_MAX_TOKEN_LIFETIME_SECONDS,
     ConfigurationError,
     JWKSKeySource,
@@ -148,7 +148,7 @@ class SecureConfig:
         if self.binds_to_loopback:
             return []
         return [
-            f"DVMCP_SECURE_HOST={self.host!r} is not one of {', '.join(sorted(LOOPBACK_HOSTS))}. The server serves"
+            f"AGENTHEIST_SECURE_HOST={self.host!r} is not one of {', '.join(sorted(LOOPBACK_HOSTS))}. The server serves"
             " plain HTTP and the MCP SDK's Host/Origin (DNS-rebinding) checks are off, so bearer tokens and"
             " tickets can cross the network unencrypted. Only do this behind a TLS-terminating reverse proxy"
             " on a trusted network."
@@ -164,20 +164,20 @@ class SecureConfig:
                 raise ConfigurationError(f"Missing required setting {name}.")
             return value
 
-        port = _parse_whole_number(env.get("DVMCP_SECURE_PORT", "8000").strip(), "DVMCP_SECURE_PORT", "a number")
+        port = _parse_whole_number(env.get("AGENTHEIST_SECURE_PORT", "8000").strip(), "AGENTHEIST_SECURE_PORT", "a number")
         lifetime = _parse_whole_number(
-            env.get("DVMCP_SECURE_MAX_TOKEN_LIFETIME_SECONDS", str(DEFAULT_MAX_TOKEN_LIFETIME_SECONDS)).strip(),
-            "DVMCP_SECURE_MAX_TOKEN_LIFETIME_SECONDS", "a whole number of seconds")
+            env.get("AGENTHEIST_SECURE_MAX_TOKEN_LIFETIME_SECONDS", str(DEFAULT_MAX_TOKEN_LIFETIME_SECONDS)).strip(),
+            "AGENTHEIST_SECURE_MAX_TOKEN_LIFETIME_SECONDS", "a whole number of seconds")
         return cls(
-            issuer=required("DVMCP_SECURE_ISSUER"),
-            resource_url=required("DVMCP_SECURE_RESOURCE_URL"),
-            required_scopes=env.get("DVMCP_SECURE_REQUIRED_SCOPES", DEFAULT_READ_SCOPE).split(),
-            internal_scope=env.get("DVMCP_SECURE_INTERNAL_SCOPE", DEFAULT_INTERNAL_SCOPE).strip(),
-            jwks_url=env.get("DVMCP_SECURE_JWKS_URL", "").strip() or None,
-            jwks_ca_file=env.get("DVMCP_SECURE_JWKS_CA_FILE", "").strip() or None,
-            public_key_file=env.get("DVMCP_SECURE_PUBLIC_KEY_FILE", "").strip() or None,
-            directory_file=required("DVMCP_SECURE_DIRECTORY_FILE"),
-            host=env.get("DVMCP_SECURE_HOST", "127.0.0.1").strip(),
+            issuer=required("AGENTHEIST_SECURE_ISSUER"),
+            resource_url=required("AGENTHEIST_SECURE_RESOURCE_URL"),
+            required_scopes=env.get("AGENTHEIST_SECURE_REQUIRED_SCOPES", DEFAULT_READ_SCOPE).split(),
+            internal_scope=env.get("AGENTHEIST_SECURE_INTERNAL_SCOPE", DEFAULT_INTERNAL_SCOPE).strip(),
+            jwks_url=env.get("AGENTHEIST_SECURE_JWKS_URL", "").strip() or None,
+            jwks_ca_file=env.get("AGENTHEIST_SECURE_JWKS_CA_FILE", "").strip() or None,
+            public_key_file=env.get("AGENTHEIST_SECURE_PUBLIC_KEY_FILE", "").strip() or None,
+            directory_file=required("AGENTHEIST_SECURE_DIRECTORY_FILE"),
+            host=env.get("AGENTHEIST_SECURE_HOST", "127.0.0.1").strip(),
             port=port,
             max_token_lifetime_seconds=lifetime,
         )

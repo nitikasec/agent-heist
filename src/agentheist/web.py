@@ -39,8 +39,8 @@ STARTER_PAGE = """\
 """
 
 
-def dvmcp_home() -> Path:
-    return Path(os.environ.get("DVMCP_HOME", Path.home() / ".dvmcp"))
+def agentheist_home() -> Path:
+    return Path(os.environ.get("AGENTHEIST_HOME", Path.home() / ".agentheist"))
 
 
 @dataclass(frozen=True)
@@ -52,7 +52,7 @@ class AttackerSite:
 
     @classmethod
     def for_level(cls, level_dir: str) -> "AttackerSite":
-        base = dvmcp_home() / level_dir
+        base = agentheist_home() / level_dir
         return cls(root=base / "site", log=base / "access.log")
 
     def ensure(self) -> None:

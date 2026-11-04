@@ -78,7 +78,7 @@ class TestIdentityProvider:
 
 def _self_signed_localhost_cert() -> tuple[bytes, bytes]:
     key = ec.generate_private_key(ec.SECP256R1())
-    name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "dvmcp-test-jwks")])
+    name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "agentheist-test-jwks")])
     now = datetime.datetime.now(datetime.timezone.utc)
     cert = (
         x509.CertificateBuilder()

