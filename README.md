@@ -38,8 +38,20 @@ uv run agentheist play 2        # attack a victim's agent through a web page you
 uv run agentheist hint 3        # stuck? tier 1 is a nudge, `hint 3 3` nearly gives it away
 ```
 
-### Play for free with a local model
-No API key? Any OpenAI-compatible server works: [Ollama](https://ollama.com), LM Studio, llama.cpp, vLLM.
+### Play for free
+No paid API key needed. Any OpenAI-compatible endpoint works, hosted or local.
+
+**Free hosted model (no download):** create a free key at [console.groq.com](https://console.groq.com), then:
+
+```bash
+export AGENTHEIST_PROVIDER=openai AGENTHEIST_BASE_URL=https://api.groq.com/openai/v1
+export AGENTHEIST_MODEL=openai/gpt-oss-120b AGENTHEIST_API_KEY=gsk_...
+uv run agentheist play 2
+```
+
+Levels 1–3 have been solved end to end with `openai/gpt-oss-120b` on Groq's free tier.
+
+**Local model:** [Ollama](https://ollama.com), LM Studio, llama.cpp or vLLM.
 
 ```bash
 ollama pull qwen3:4b

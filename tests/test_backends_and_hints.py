@@ -20,7 +20,9 @@ class FakeChatCompletions(BaseHTTPRequestHandler):
 
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
-        type(self).requests.append({"auth": self.headers.get("Authorization"), "body": body})
+        type(self).requests.append(
+            {"auth": self.headers.get("Authorization"), "agent": self.headers.get("User-Agent"), "body": body}
+        )
         last = body["messages"][-1]
         if last["role"] == "tool":
             message = {"role": "assistant", "content": f"Here it is: {last['content']}"}
@@ -57,6 +59,7 @@ async def test_local_model_drives_the_agent_through_the_openai_adapter(fake_serv
     assert FLAG in reply
     first, second = (r["body"] for r in FakeChatCompletions.requests)
     assert FakeChatCompletions.requests[0]["auth"] == "Bearer local-key"
+    assert FakeChatCompletions.requests[0]["agent"].startswith("agent-heist/")
     assert first["model"] == "qwen3"
     assert first["messages"][0] == {"role": "system", "content": get_level(1).system_prompt}
     assert {t["function"]["name"] for t in first["tools"]} == {"search_kb", "list_tickets", "get_ticket"}

@@ -23,6 +23,7 @@ DEFAULT_CLAUDE_MODEL = "claude-opus-5-5"
 DEFAULT_LOCAL_MODEL = "llama3.1"
 DEFAULT_LOCAL_URL = "http://localhost:11434/v1"
 REQUEST_TIMEOUT_SECONDS = 300
+USER_AGENT = "agent-heist/0.1 (+https://github.com/nitikasec/agent-heist)"
 
 
 class BackendError(Exception):
@@ -115,7 +116,8 @@ class OpenAICompatibleClient:
         return from_openai_response(data)
 
     def _post(self, body: dict[str, Any]) -> dict[str, Any]:
-        headers = {"Content-Type": "application/json"}
+        # Some hosted providers sit behind a firewall that rejects urllib's default User-Agent.
+        headers = {"Content-Type": "application/json", "User-Agent": USER_AGENT}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
         request = urllib.request.Request(self.url, data=json.dumps(body).encode(), headers=headers, method="POST")

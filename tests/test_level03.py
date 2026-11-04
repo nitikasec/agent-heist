@@ -124,3 +124,13 @@ def test_secure_session_token_must_be_issued_to_this_server(monkeypatch):
 
 def test_secure_redaction():
     assert secure.redact("Authorization: Bearer eyJabc.def-ghi_jk") == "Authorization: Bearer [REDACTED]"
+
+
+async def test_player_sees_the_whole_leaked_token_in_the_tool_preview(capsys):
+    from agentheist import cli
+
+    async with Client(server) as client:
+        status = text(await client.call_tool("integration_status", {}))
+    cli.show_tool_call("integration_status", {}, status)
+    assert ANALYTICS_SYNC_TOKEN in capsys.readouterr().out
+
