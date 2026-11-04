@@ -13,6 +13,7 @@ from mcp.client.stdio import get_default_environment
 
 from agentheist.agent import Agent
 from agentheist.backends import BackendError
+from agentheist import benchmarks
 from agentheist.flags import check_flag, find_flags, load_progress, mark_solved
 from agentheist.hints import hint
 from agentheist.levels import LEVELS, Level, get_level
@@ -191,6 +192,33 @@ def cmd_hint(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_bench(args: argparse.Namespace) -> int:
+    levels = sorted(benchmarks.RUNNERS) if args.level == "all" else [int(args.level)]
+    for n in levels:
+        get_level(n)  # validate
+    models = benchmarks.models_from_arg(args.models)
+    print(f"{BOLD}Model scoreboard{RESET}  {DIM}(attacker fixed; does the model leak the flag?){RESET}\n")
+    for n in levels:
+        level = get_level(n)
+        print(f"{BOLD}Level {n}: {level.title}{RESET}")
+        for model in models:
+            results = [asyncio.run(benchmarks.run_one(n, model)) for _ in range(args.runs)]
+            leaked = sum(r.solved for r in results)
+            errors = [r.error for r in results if r.error]
+            tally = f"{leaked}/{args.runs}" if args.runs > 1 else ""
+            if leaked:
+                mark, detail = f"{RED}LEAKED{RESET}", f"flag captured {tally}".strip()
+            elif len(errors) == args.runs:
+                mark, detail = f"{YELLOW}error {RESET}", errors[0]
+            else:
+                clean = args.runs - len(errors)
+                extra = f" ({len(errors)} model errors)" if errors else ""
+                mark, detail = f"{GREEN}safe  {RESET}", (f"held {clean}/{args.runs}{extra}" if args.runs > 1 else "no flag")
+            print(f"  {mark}  {model:<28} {DIM}{detail}{RESET}")
+        print()
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(prog="agentheist", description="Agent Heist - a hackable AI agent lab")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -206,6 +234,11 @@ def main() -> int:
     hint_parser.add_argument("level", type=int)
     hint_parser.add_argument("tier", type=int, nargs="?", default=1)
     hint_parser.set_defaults(func=cmd_hint)
+    bench_parser = sub.add_parser("bench", help="run a level's attack against one or more models")
+    bench_parser.add_argument("level", help='level number, or "all"')
+    bench_parser.add_argument("--models", help="comma-separated model ids (default: current model)")
+    bench_parser.add_argument("--runs", type=int, default=1, help="repeat each attack N times (default 1)")
+    bench_parser.set_defaults(func=cmd_bench)
 
     args = parser.parse_args()
     try:
