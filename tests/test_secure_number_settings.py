@@ -3,13 +3,13 @@
 import pytest
 from secure_support import ISSUER, RESOURCE
 
-from dvmcp.secure import __main__ as entrypoint
-from dvmcp.secure.auth import ConfigurationError
-from dvmcp.secure.config import SecureConfig
+from agentheist.secure import __main__ as entrypoint
+from agentheist.secure.auth import ConfigurationError
+from agentheist.secure.config import SecureConfig
 
 SETTINGS = {
-    "DVMCP_SECURE_PORT": ("port", "must be a number"),
-    "DVMCP_SECURE_MAX_TOKEN_LIFETIME_SECONDS": ("max_token_lifetime_seconds", "must be a whole number of seconds"),
+    "AGENTHEIST_SECURE_PORT": ("port", "must be a number"),
+    "AGENTHEIST_SECURE_MAX_TOKEN_LIFETIME_SECONDS": ("max_token_lifetime_seconds", "must be a whole number of seconds"),
 }
 NOT_ASCII_DIGITS = [
     "²",  # superscript two: isdigit() is True, int() raises
@@ -21,8 +21,8 @@ NOT_ASCII_DIGITS = [
 
 
 def env(name, value):
-    return {"DVMCP_SECURE_ISSUER": ISSUER, "DVMCP_SECURE_RESOURCE_URL": RESOURCE,
-            "DVMCP_SECURE_PUBLIC_KEY_FILE": "k.pem", "DVMCP_SECURE_DIRECTORY_FILE": "p.json", name: value}
+    return {"AGENTHEIST_SECURE_ISSUER": ISSUER, "AGENTHEIST_SECURE_RESOURCE_URL": RESOURCE,
+            "AGENTHEIST_SECURE_PUBLIC_KEY_FILE": "k.pem", "AGENTHEIST_SECURE_DIRECTORY_FILE": "p.json", name: value}
 
 
 @pytest.mark.parametrize("name", SETTINGS)
@@ -49,18 +49,18 @@ def test_longest_parseable_values_reach_the_range_check(name, value):
 @pytest.mark.parametrize("value, port", [("1", 1), ("65535", 65535), (" 8000 ", 8000), ("0008000", 8000),
                                          ("0" * 5000 + "8000", 8000)])
 def test_valid_ports(value, port):
-    assert SecureConfig.from_env(env("DVMCP_SECURE_PORT", value)).port == port
+    assert SecureConfig.from_env(env("AGENTHEIST_SECURE_PORT", value)).port == port
 
 
 @pytest.mark.parametrize("value", ["0", "65536", "000"])
 def test_out_of_range_ports(value):
     with pytest.raises(ConfigurationError, match="between 1 and 65535"):
-        SecureConfig.from_env(env("DVMCP_SECURE_PORT", value))
+        SecureConfig.from_env(env("AGENTHEIST_SECURE_PORT", value))
 
 
 @pytest.mark.parametrize("value, seconds", [("60", 60), ("86400", 86400), ("0000060", 60)])
 def test_valid_lifetimes(value, seconds):
-    assert SecureConfig.from_env(env("DVMCP_SECURE_MAX_TOKEN_LIFETIME_SECONDS", value)).max_token_lifetime_seconds \
+    assert SecureConfig.from_env(env("AGENTHEIST_SECURE_MAX_TOKEN_LIFETIME_SECONDS", value)).max_token_lifetime_seconds \
         == seconds
 
 
@@ -70,7 +70,7 @@ def test_entrypoint_reports_a_configuration_error(monkeypatch, capsys, name, val
     """The original bug: these values used to surface as 'Startup failed (ValueError)'."""
     for key, val in env(name, value).items():
         monkeypatch.setenv(key, val)
-    monkeypatch.delenv("DVMCP_SECURE_DEBUG", raising=False)
+    monkeypatch.delenv("AGENTHEIST_SECURE_DEBUG", raising=False)
     assert entrypoint.main() == 1
     err = capsys.readouterr().err
     assert err.startswith(f"Configuration error: {name}") and "Startup failed" not in err and "Traceback" not in err

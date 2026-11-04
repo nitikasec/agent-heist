@@ -1,6 +1,9 @@
 """Level registry. Each level module defines TITLE, BRIEFING, SYSTEM_PROMPT and an MCP `server`.
 
-Modules are imported lazily so `python -m dvmcp.levels.<level>` can run a level's server cleanly.
+A level may also set MODE = "victim": the player doesn't chat with the agent, a simulated
+victim does, and the module provides SITE_DIR and VICTIM_REQUEST for that flow.
+
+Modules are imported lazily so `python -m agentheist.levels.<level>` can run a level's server cleanly.
 """
 
 import importlib
@@ -29,9 +32,14 @@ class Level:
     def system_prompt(self) -> str:
         return self.module.SYSTEM_PROMPT
 
+    @property
+    def mode(self) -> str:
+        return getattr(self.module, "MODE", "chat")
+
 
 LEVELS = {
-    1: Level(1, "dvmcp.levels.level01_trusting_helpdesk"),
+    1: Level(1, "agentheist.levels.level01_trusting_helpdesk"),
+    2: Level(2, "agentheist.levels.level02_poisoned_page"),
 }
 
 

@@ -7,8 +7,8 @@ import sys
 import pytest
 from secure_support import ISSUER, directory_json, write_private_file
 
-from dvmcp.secure import auth
-from dvmcp.secure.auth import ConfigurationError, PrincipalDirectory
+from agentheist.secure import auth
+from agentheist.secure.auth import ConfigurationError, PrincipalDirectory
 
 posix_only = pytest.mark.skipif(os.name != "posix", reason="permission checks are POSIX-only")
 

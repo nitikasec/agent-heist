@@ -4,5 +4,5 @@ WORKDIR /app
 COPY pyproject.toml uv.lock README.md ./
 COPY src ./src
 RUN uv sync --frozen --no-dev
-ENTRYPOINT ["uv", "run", "--no-sync", "dvmcp"]
+ENTRYPOINT ["uv", "run", "--no-sync", "agentheist"]
 CMD ["list"]

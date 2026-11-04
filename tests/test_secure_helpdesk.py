@@ -19,9 +19,9 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from mcp import Client
 from mcp.client.streamable_http import streamable_http_client
 
-from dvmcp.secure.auth import JWTTokenVerifier, PrincipalDirectory, StaticPublicKey
-from dvmcp.secure.config import SecureConfig
-from dvmcp.secure.helpdesk import NOT_AUTHORIZED, NOT_FOUND, TICKETS, create_server
+from agentheist.secure.auth import JWTTokenVerifier, PrincipalDirectory, StaticPublicKey
+from agentheist.secure.config import SecureConfig
+from agentheist.secure.helpdesk import NOT_AUTHORIZED, NOT_FOUND, TICKETS, create_server
 
 ISSUER = "https://idp.test.invalid"
 BASE_URL = "http://127.0.0.1:8000"
@@ -276,11 +276,11 @@ async def test_tools_fail_closed_without_http_auth(server):
 
 
 async def test_audit_log_never_contains_ticket_bodies(app, idp, caplog):
-    caplog.set_level(logging.INFO, logger="dvmcp.secure.audit")
+    caplog.set_level(logging.INFO, logger="agentheist.secure.audit")
     await call(app, idp.issue("sam", f"{READ} {INTERNAL}"), "get_ticket", {"ticket_id": 7001})
     await call(app, idp.issue("alice"), "get_ticket", {"ticket_id": 7001})
 
-    events = [json.loads(record.getMessage()) for record in caplog.records if record.name == "dvmcp.secure.audit"]
+    events = [json.loads(record.getMessage()) for record in caplog.records if record.name == "agentheist.secure.audit"]
     assert {"tool": "get_ticket", "subject": "sam", "ticket": 7001, "decision": "allow"} in events
     assert {"tool": "get_ticket", "subject": "alice", "ticket": 7001, "decision": "deny"} in events
     assert INTERNAL_BODY not in caplog.text
@@ -317,7 +317,7 @@ def test_insecure_configuration_is_refused(overrides):
 
 
 def test_missing_environment_settings_are_refused():
-    with pytest.raises(ValueError, match="DVMCP_SECURE_ISSUER"):
+    with pytest.raises(ValueError, match="AGENTHEIST_SECURE_ISSUER"):
         SecureConfig.from_env({})
 
 

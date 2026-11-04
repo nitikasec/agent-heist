@@ -1,6 +1,6 @@
 # Secure Helpdesk (the fixed version of Level 1)
 
-Level 1, *The Trusting Helpdesk* (`src/dvmcp/levels/level01_trusting_helpdesk.py`), is **intentionally
+Level 1, *The Trusting Helpdesk* (`src/agentheist/levels/level01_trusting_helpdesk.py`), is **intentionally
 vulnerable** and is left unchanged. This package is a separate implementation of the same helpdesk that
 enforces authentication and authorization on the server. It uses synthetic data and has no challenge flag.
 
@@ -30,7 +30,7 @@ client ──HTTPS + Bearer JWT──▶ SDK BearerAuthBackend ──▶ JWTToke
 | File | Purpose |
 |------|---------|
 | `auth.py` | `JWTTokenVerifier`, key sources (`StaticPublicKey`, `JWKSKeySource`), `PrincipalDirectory`, `Principal`, `resolve_principal` |
-| `config.py` | `SecureConfig`: all trust settings, read from `DVMCP_SECURE_*` env vars and validated |
+| `config.py` | `SecureConfig`: all trust settings, read from `AGENTHEIST_SECURE_*` env vars and validated |
 | `helpdesk.py` | `create_server()`: the MCP server, its tools and the authorization policy |
 | `__main__.py` | Runs the server over streamable HTTP with uvicorn |
 
@@ -45,7 +45,7 @@ client ──HTTPS + Bearer JWT──▶ SDK BearerAuthBackend ──▶ JWTToke
    - `iss` equals the configured issuer **exactly**.
    - `aud` contains the configured resource URL.
    - `exp` is in the future, and `iat`/`nbf` are not in the future (30s leeway).
-   - The **lifetime** `exp - iat` is positive and at most `DVMCP_SECURE_MAX_TOKEN_LIFETIME_SECONDS` (default
+   - The **lifetime** `exp - iat` is positive and at most `AGENTHEIST_SECURE_MAX_TOKEN_LIFETIME_SECONDS` (default
      **3600 s**, allowed range 60–86400). Because `iat` can't be in the future, this also limits how long from now
      a token can stay valid: at most the maximum lifetime plus the 30 s leeway.
    - `iss`, `sub`, `aud`, `exp` and `iat` are all present. `sub` must be a printable string of 1–255 characters
@@ -75,7 +75,7 @@ transport proves it.
 - **Disclosure policy:** an internal ticket the caller can't read gets exactly the same response as an id that
   doesn't exist, so callers can't find out which internal ids exist.
 - **No identity in tool arguments:** tools take no identity or role parameters, and extra arguments are ignored.
-- **Audit log:** each decision is logged to `dvmcp.secure.audit` as **one JSON object per line**, with the tool,
+- **Audit log:** each decision is logged to `agentheist.secure.audit` as **one JSON object per line**, with the tool,
   subject, ticket id and decision, for example
   `{"decision": "deny", "subject": "alice", "ticket": 7001, "tool": "get_ticket"}`. JSON encoding escapes every
   control and non-ASCII character, so a field value can't start a new log line. Ticket bodies are never logged.
@@ -151,7 +151,7 @@ Keycloak). This repo doesn't include a production identity provider.
    In production this would normally be your user or HR database, not a file. The file is validated strictly:
    - **Shape:** exactly the keys shown, no duplicate JSON keys, and a non-empty list of known roles
      (`customer`, `staff`) for each entry.
-   - **Identities:** every `issuer` must equal `DVMCP_SECURE_ISSUER`, and the same issuer and subject can't appear twice.
+   - **Identities:** every `issuer` must equal `AGENTHEIST_SECURE_ISSUER`, and the same issuer and subject can't appear twice.
    - **File (POSIX only):** a regular file of at most 1 MiB, owned by the server's user or root, not group- or
      world-writable, and not in a world-writable folder without the sticky bit. Symlinks are followed, so these
      checks apply to the target file.
@@ -159,19 +159,19 @@ Keycloak). This repo doesn't include a production identity provider.
    Errors name the record index and never echo file contents.
 3. **Set the environment** and start the server:
    ```bash
-   export DVMCP_SECURE_ISSUER="https://login.example.com/"          # must match the token's iss exactly
-   export DVMCP_SECURE_RESOURCE_URL="https://helpdesk.example.com/mcp"
-   export DVMCP_SECURE_JWKS_URL="https://login.example.com/.well-known/jwks.json"
+   export AGENTHEIST_SECURE_ISSUER="https://login.example.com/"          # must match the token's iss exactly
+   export AGENTHEIST_SECURE_RESOURCE_URL="https://helpdesk.example.com/mcp"
+   export AGENTHEIST_SECURE_JWKS_URL="https://login.example.com/.well-known/jwks.json"
    # optional, for an identity provider behind a private CA:
-   # export DVMCP_SECURE_JWKS_CA_FILE=/path/to/ca.pem
-   # or, instead of JWKS:  export DVMCP_SECURE_PUBLIC_KEY_FILE=/path/to/issuer-public.pem
-   export DVMCP_SECURE_DIRECTORY_FILE=/path/to/principals.json
-   export DVMCP_SECURE_REQUIRED_SCOPES="tickets:read"               # space-separated
-   export DVMCP_SECURE_INTERNAL_SCOPE="tickets:read_internal"
-   export DVMCP_SECURE_HOST=127.0.0.1 DVMCP_SECURE_PORT=8000
-   export DVMCP_SECURE_MAX_TOKEN_LIFETIME_SECONDS=3600            # optional; 60–86400
+   # export AGENTHEIST_SECURE_JWKS_CA_FILE=/path/to/ca.pem
+   # or, instead of JWKS:  export AGENTHEIST_SECURE_PUBLIC_KEY_FILE=/path/to/issuer-public.pem
+   export AGENTHEIST_SECURE_DIRECTORY_FILE=/path/to/principals.json
+   export AGENTHEIST_SECURE_REQUIRED_SCOPES="tickets:read"               # space-separated
+   export AGENTHEIST_SECURE_INTERNAL_SCOPE="tickets:read_internal"
+   export AGENTHEIST_SECURE_HOST=127.0.0.1 AGENTHEIST_SECURE_PORT=8000
+   export AGENTHEIST_SECURE_MAX_TOKEN_LIFETIME_SECONDS=3600            # optional; 60–86400
 
-   uv run python -m dvmcp.secure
+   uv run python -m agentheist.secure
    ```
    The server refuses to start if a setting is missing or insecure. URLs are checked by parsing them, not by
    prefix:
@@ -188,11 +188,11 @@ Keycloak). This repo doesn't include a production identity provider.
    - an invalid directory file
    - a JWKS endpoint it can't reach at startup
 
-   Errors print one line, `Configuration error: ...`, with no traceback. Set `DVMCP_SECURE_DEBUG=1` to see tracebacks
+   Errors print one line, `Configuration error: ...`, with no traceback. Set `AGENTHEIST_SECURE_DEBUG=1` to see tracebacks
    for unexpected errors. The server serves MCP at `http://<host>:<port>/mcp` in the SDK's default stateful mode.
-4. **Put TLS in front.** Run it behind a TLS-terminating reverse proxy, and keep `DVMCP_SECURE_HOST` on loopback
+4. **Put TLS in front.** Run it behind a TLS-terminating reverse proxy, and keep `AGENTHEIST_SECURE_HOST` on loopback
    or a private interface. If the host is anything other than exactly `127.0.0.1`, `localhost` or `::1`, the
-   server logs a **warning** at startup (logger `dvmcp.secure`): it then serves plain HTTP and the SDK's
+   server logs a **warning** at startup (logger `agentheist.secure`): it then serves plain HTTP and the SDK's
    Host/Origin checks are off. That includes `0.0.0.0`, `127.0.0.2` and `LOCALHOST`. It still starts, because a
    private-interface binding behind a proxy is a valid deployment.
 
@@ -216,7 +216,7 @@ Keycloak). This repo doesn't include a production identity provider.
   `127.0.0.1`, `localhost` or `[::1]`, so the proxy must forward one of those. Binding to a non-loopback address
   turns that check off and serves plain HTTP. The startup warning only reports this; it doesn't stop the server,
   and nothing checks that a TLS proxy is really in front.
-- **Not wired into `dvmcp play`.** The CLI agent connects to levels over stdio, and stdio has no MCP auth layer.
+- **Not wired into `agentheist play`.** The CLI agent connects to levels over stdio, and stdio has no MCP auth layer.
   The secure server is HTTP-only.
 - **Single-ticket ownership isn't modelled.** Every authenticated customer can read every public ticket, as this
   design requires. Real helpdesks usually also limit customers to their own tickets.

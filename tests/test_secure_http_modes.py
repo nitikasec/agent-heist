@@ -1,6 +1,6 @@
 """Authorization over both SDK HTTP modes and both key types (audit finding H2).
 
-"stateful" is the SDK default used by `python -m dvmcp.secure` (sessions + SSE responses);
+"stateful" is the SDK default used by `python -m agentheist.secure` (sessions + SSE responses);
 "stateless" is JSON responses with no sessions.
 """
 
@@ -10,9 +10,9 @@ from mcp import Client
 from mcp.client.streamable_http import streamable_http_client
 from secure_support import BASE_URL, INTERNAL, ISSUER, READ, RESOURCE, TestIdentityProvider, running
 
-from dvmcp.secure.auth import JWTTokenVerifier, PrincipalDirectory, StaticPublicKey
-from dvmcp.secure.config import SecureConfig
-from dvmcp.secure.helpdesk import NOT_AUTHORIZED, TICKETS, create_server
+from agentheist.secure.auth import JWTTokenVerifier, PrincipalDirectory, StaticPublicKey
+from agentheist.secure.config import SecureConfig
+from agentheist.secure.helpdesk import NOT_AUTHORIZED, TICKETS, create_server
 
 INTERNAL_BODY = TICKETS[7001]["body"]
 HEADERS = {"Accept": "application/json, text/event-stream", "Content-Type": "application/json"}

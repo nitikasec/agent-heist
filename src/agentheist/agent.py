@@ -39,7 +39,7 @@ class Agent:
         self.mcp = mcp_client
         self.system_prompt = system_prompt
         self.claude = claude or anthropic.AsyncAnthropic()
-        self.model = model or os.environ.get("DVMCP_MODEL", DEFAULT_MODEL)
+        self.model = model or os.environ.get("AGENTHEIST_MODEL", DEFAULT_MODEL)
         self.on_tool_call = on_tool_call
         self.messages: list[dict[str, Any]] = []
         self._tools: list[dict[str, Any]] | None = None

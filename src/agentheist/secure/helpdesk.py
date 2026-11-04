@@ -19,10 +19,10 @@ from mcp.server.auth.settings import AuthSettings
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 
-from dvmcp.secure.auth import STAFF_ROLE, Principal, PrincipalDirectory, resolve_principal
-from dvmcp.secure.config import SecureConfig
+from agentheist.secure.auth import STAFF_ROLE, Principal, PrincipalDirectory, resolve_principal
+from agentheist.secure.config import SecureConfig
 
-audit_log = logging.getLogger("dvmcp.secure.audit")
+audit_log = logging.getLogger("agentheist.secure.audit")
 
 
 def audit(**fields: object) -> None:
@@ -125,7 +125,7 @@ def create_server(config: SecureConfig, token_verifier: TokenVerifier, directory
 
 
 def build_server(config: SecureConfig) -> MCPServer:
-    """Build the server exactly as `python -m dvmcp.secure` does, failing fast on bad configuration."""
+    """Build the server exactly as `python -m agentheist.secure` does, failing fast on bad configuration."""
     verifier = config.token_verifier()
     verifier.key_source.prefetch()
     return create_server(config, verifier, config.directory())

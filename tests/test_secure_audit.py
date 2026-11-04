@@ -6,8 +6,8 @@ import logging
 import pytest
 from secure_support import ISSUER, RESOURCE, TestIdentityProvider
 
-from dvmcp.secure.auth import JWTTokenVerifier, StaticPublicKey, is_safe_identifier
-from dvmcp.secure.helpdesk import audit
+from agentheist.secure.auth import JWTTokenVerifier, StaticPublicKey, is_safe_identifier
+from agentheist.secure.helpdesk import audit
 
 UNSAFE_SUBJECTS = [
     'alice\n{"decision": "allow", "subject": "sam", "tool": "get_ticket"}',
@@ -39,10 +39,10 @@ async def test_token_with_unsafe_subject_is_rejected(subject):
 
 @pytest.mark.parametrize("value", UNSAFE_SUBJECTS + ["ünïcödé", 'quote " and backslash \\'])
 def test_audit_event_is_always_one_parseable_line(caplog, value):
-    caplog.set_level(logging.INFO, logger="dvmcp.secure.audit")
+    caplog.set_level(logging.INFO, logger="agentheist.secure.audit")
     audit(tool="get_ticket", subject=value, ticket=1, decision="deny")
 
-    records = [r for r in caplog.records if r.name == "dvmcp.secure.audit"]
+    records = [r for r in caplog.records if r.name == "agentheist.secure.audit"]
     assert len(records) == 1
     message = records[0].getMessage()
     assert "\n" not in message and "\r" not in message and message.isascii() and message.isprintable()
