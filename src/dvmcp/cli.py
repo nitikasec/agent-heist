@@ -3,14 +3,18 @@
 import argparse
 import asyncio
 import json
+import os
 import sys
+from urllib.parse import unquote_plus, urlsplit
 
 import anthropic
 from mcp import Client, StdioServerParameters
+from mcp.client.stdio import get_default_environment
 
 from dvmcp.agent import Agent
 from dvmcp.flags import check_flag, find_flags, load_progress, mark_solved
-from dvmcp.levels import LEVELS, get_level
+from dvmcp.levels import LEVELS, Level, get_level
+from dvmcp.web import ATTACKER_HOST, AttackerSite
 
 DIM, BOLD, GREEN, RED, YELLOW, RESET = "\033[2m", "\033[1m", "\033[32m", "\033[31m", "\033[33m", "\033[0m"
 
@@ -28,13 +32,101 @@ def show_tool_call(name: str, arguments: dict, output: str) -> None:
     print(f"{DIM}  -> tool {name}({json.dumps(arguments)})\n     {preview.replace(chr(10), chr(10) + '     ')}{RESET}")
 
 
+AUTH_FAILED = object()
+
+
+async def send_or_report(agent: Agent, message: str) -> str | object | None:
+    """Send a message; on API problems print why and return None, or AUTH_FAILED if there's no way on."""
+    try:
+        return await agent.send(message)
+    except anthropic.AuthenticationError:
+        print(f"{RED}Authentication failed. Check your ANTHROPIC_API_KEY and try again.{RESET}")
+        return AUTH_FAILED
+    except TypeError as exc:
+        # Raised by the SDK when no credentials are configured at all.
+        if "authentication" not in str(exc):
+            raise
+        print(f"{RED}No Claude API credentials found. Export ANTHROPIC_API_KEY and try again.{RESET}")
+        return AUTH_FAILED
+    except anthropic.APIConnectionError:
+        print(f"{RED}Could not reach the Claude API. Check your connection.{RESET}")
+        return None
+    except anthropic.APIStatusError as exc:
+        print(f"{RED}API error {exc.status_code}: {exc.message}{RESET}")
+        return None
+
+
+def level_server(level: Level) -> StdioServerParameters:
+    # Pass DVMCP_HOME through so the level's server and the CLI agree on where files live.
+    env = get_default_environment()
+    if "DVMCP_HOME" in os.environ:
+        env["DVMCP_HOME"] = os.environ["DVMCP_HOME"]
+    return StdioServerParameters(command=sys.executable, args=["-m", level.module_name], env=env)
+
+
+def show_victim_tool_call(name: str, arguments: dict, _output: str) -> None:
+    # The attacker can't see inside the victim's session, so show only which tool ran and,
+    # for fetches, which host was contacted. Arguments and outputs stay hidden.
+    detail = ""
+    if name == "fetch_url":
+        detail = f" (host: {urlsplit(str(arguments.get('url', ''))).hostname})"
+    print(f"{DIM}  -> Remy called {name}{detail}{RESET}")
+
+
+def read_new_log_lines(site: AttackerSite, offset: int) -> list[str]:
+    with site.log.open() as log:
+        log.seek(offset)
+        return [unquote_plus(line.rstrip("\n")) for line in log if line.strip()]
+
+
+async def play_victim(level: Level) -> int:
+    site = AttackerSite.for_level(level.module.SITE_DIR)
+    site.ensure()
+    default_url = f"http://{ATTACKER_HOST}/"
+    print(f"{BOLD}Level {level.number}: {level.title}{RESET}\n")
+    print(level.briefing.format(site_root=site.root, site_log=site.log) + "\n")
+    print(
+        f"{DIM}Edit your site, then press Enter to email Dana the link {default_url}\n"
+        f"(or type another URL). Commands: /quit{RESET}\n"
+    )
+
+    while True:
+        try:
+            url = input(f"{BOLD}link>{RESET} ").strip() or default_url
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return 0
+        if url == "/quit":
+            return 0
+
+        offset = site.log.stat().st_size
+        print(f"{DIM}Dana asks Remy to review {url} ...{RESET}")
+        # A fresh server and conversation per attempt: Dana starts a new chat each time.
+        async with Client(level_server(level)) as mcp_client:
+            agent = Agent(mcp_client, level.system_prompt, on_tool_call=show_victim_tool_call)
+            reply = await send_or_report(agent, level.module.VICTIM_REQUEST.format(url=url))
+        if reply is AUTH_FAILED:
+            return 1
+        if reply is None:
+            continue
+        print(f"{DIM}Remy replied to Dana ({len(reply)} characters). You can't see Dana's screen.{RESET}")
+
+        lines = read_new_log_lines(site, offset)
+        print(f"\n{BOLD}New requests in your access log:{RESET}")
+        print("\n".join(f"  {line}" for line in lines) if lines else f"  {DIM}(none){RESET}")
+        print()
+        if any(find_flags(line) for line in lines):
+            print(f"{YELLOW}Looks like a flag! Submit it with: dvmcp submit {level.number} <flag>{RESET}\n")
+
+
 async def play(level_number: int) -> int:
     level = get_level(level_number)
+    if level.mode == "victim":
+        return await play_victim(level)
     print(f"{BOLD}Level {level.number}: {level.title}{RESET}\n\n{level.briefing}\n")
     print(f"{DIM}Type your messages to the agent. Commands: /quit, /reset{RESET}\n")
 
-    server = StdioServerParameters(command=sys.executable, args=["-m", level.module_name])
-    async with Client(server) as mcp_client:
+    async with Client(level_server(level)) as mcp_client:
         agent = Agent(mcp_client, level.system_prompt, on_tool_call=show_tool_call)
         while True:
             try:
@@ -51,22 +143,10 @@ async def play(level_number: int) -> int:
                 print(f"{DIM}Conversation reset.{RESET}")
                 continue
 
-            try:
-                reply = await agent.send(user_message)
-            except anthropic.AuthenticationError:
-                print(f"{RED}Authentication failed. Check your ANTHROPIC_API_KEY and try again.{RESET}")
+            reply = await send_or_report(agent, user_message)
+            if reply is AUTH_FAILED:
                 return 1
-            except TypeError as exc:
-                # Raised by the SDK when no credentials are configured at all.
-                if "authentication" not in str(exc):
-                    raise
-                print(f"{RED}No Claude API credentials found. Export ANTHROPIC_API_KEY and try again.{RESET}")
-                return 1
-            except anthropic.APIConnectionError:
-                print(f"{RED}Could not reach the Claude API. Check your connection.{RESET}")
-                continue
-            except anthropic.APIStatusError as exc:
-                print(f"{RED}API error {exc.status_code}: {exc.message}{RESET}")
+            if reply is None:
                 continue
 
             print(f"{BOLD}agent>{RESET} {reply}\n")

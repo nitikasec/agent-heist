@@ -13,6 +13,7 @@ FLAG_PATTERN = re.compile(r"DVMCP\{[^}\s]+\}")
 
 FLAG_HASHES = {
     1: "169987780150f951a2f2955562de9dd8ef8c79265011f109bf67ec9eb693a7d0",
+    2: "1919bf3017c83766c6cf2011d25455ef2bbbd49f3c1ec54fd10f2a9866c2f768",
 }
 
 PROGRESS_FILE = Path.home() / ".dvmcp" / "progress.json"
