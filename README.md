@@ -114,3 +114,12 @@ Tests run without an API key: they call the MCP servers directly and use a fake 
 - **Requires an Anthropic API key** to play levels, and API usage **costs money**. Tests do not.
 - **Not a scanner or benchmark.** It teaches AI-agent/MCP attack and defense patterns by example;
   it does not assess or score real systems.
+
+## Credits and originality
+All code, scenarios and write-ups in this repository are original work, released under the MIT
+license. The attack classes themselves are public security knowledge. Terms and research it builds on:
+- The "lethal trifecta" (private data + untrusted content + external communication): Simon Willison.
+- OWASP Top 10 for LLM Applications (LLM01 prompt injection, LLM02 sensitive information disclosure,
+  LLM06 excessive agency).
+- The MCP specification's security best practices.
+

@@ -11,7 +11,8 @@ and you control that page. Remy has three tools:
 | `read_note` | Access to private data, including a production API key |
 | `list_notes` | A map of what's worth stealing |
 
-Private data, untrusted content and an outbound channel in one agent is the "lethal trifecta".
+Private data, untrusted content and an outbound channel in one agent is what Simon Willison named
+the ["lethal trifecta"](https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/).
 Any one of them is fine. All three together means whoever writes the content controls the data.
 
 ## The bug
