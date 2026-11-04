@@ -11,6 +11,7 @@ agent loop doesn't care which backend it talks to. It needs only the standard li
 import asyncio
 import json
 import os
+import time
 import urllib.error
 import urllib.request
 import uuid
@@ -24,6 +25,23 @@ DEFAULT_LOCAL_MODEL = "llama3.1"
 DEFAULT_LOCAL_URL = "http://localhost:11434/v1"
 REQUEST_TIMEOUT_SECONDS = 300
 USER_AGENT = "agent-heist/0.1 (+https://github.com/nitikasec/agent-heist)"
+MAX_RETRIES = 2
+
+
+def _retry_after(header: str | None) -> float:
+    try:
+        return min(10.0, max(1.0, float(header)))
+    except (TypeError, ValueError):
+        return 2.0
+
+
+def _short_api_error(raw: str) -> str:
+    try:
+        err = json.loads(raw).get("error", {})
+        code, msg = err.get("code", ""), err.get("message", "")
+        return (f"{code}: {msg}" if code else msg)[:160]
+    except (json.JSONDecodeError, AttributeError):
+        return raw[:160]
 
 
 class BackendError(Exception):
@@ -115,7 +133,7 @@ class OpenAICompatibleClient:
         data = await asyncio.to_thread(self._post, body)
         return from_openai_response(data)
 
-    def _post(self, body: dict[str, Any]) -> dict[str, Any]:
+    def _post(self, body: dict[str, Any], attempt: int = 0) -> dict[str, Any]:
         # Some hosted providers sit behind a firewall that rejects urllib's default User-Agent.
         headers = {"Content-Type": "application/json", "User-Agent": USER_AGENT}
         if self.api_key:
@@ -125,8 +143,12 @@ class OpenAICompatibleClient:
             with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
                 return json.loads(response.read())
         except urllib.error.HTTPError as exc:
-            detail = exc.read().decode(errors="replace")[:300]
-            raise BackendError(f"{self.url} returned HTTP {exc.code}: {detail}") from exc
+            raw = exc.read().decode(errors="replace")
+            # Back off and retry on a rate limit, honoring Retry-After when given.
+            if exc.code == 429 and attempt < MAX_RETRIES:
+                time.sleep(_retry_after(exc.headers.get("Retry-After")))
+                return self._post(body, attempt + 1)
+            raise BackendError(f"HTTP {exc.code}: {_short_api_error(raw)}") from exc
         except (urllib.error.URLError, TimeoutError) as exc:
             raise BackendError(f"Could not reach {self.url} ({exc}). Is your local model server running?") from exc
         except json.JSONDecodeError as exc:
