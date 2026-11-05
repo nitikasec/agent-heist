@@ -17,6 +17,7 @@ from agentheist import benchmarks
 from agentheist.flags import check_flag, find_flags, load_progress, mark_solved
 from agentheist.hints import hint
 from agentheist.levels import LEVELS, Level, get_level
+from agentheist.trace import Trace
 from agentheist.web import ATTACKER_HOST, AttackerSite
 
 DIM, BOLD, GREEN, RED, YELLOW, RESET = "\033[2m", "\033[1m", "\033[32m", "\033[31m", "\033[33m", "\033[0m"
@@ -247,6 +248,36 @@ def cmd_bench(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_trace(level_number: int, model: str, secure: bool) -> Trace:
+    level = get_level(level_number)
+    target = "fixed server" if secure else "vulnerable"
+    trace = Trace(level_number, level.title, model, target,
+                  task=benchmarks.TASK_SUMMARIES.get(level_number, ""))
+    result = asyncio.run(benchmarks.run_one(level_number, model, secure=secure, record=trace.record_tool))
+    if result.error:
+        raise RuntimeError(result.error)
+    trace.finish(result.solved)
+    return trace
+
+
+def cmd_trace(args: argparse.Namespace) -> int:
+    get_level(int(args.level))  # validate
+    model = benchmarks.models_from_arg(args.models)[0]
+    print(f"{BOLD}Attack forensics{RESET}  {DIM}(how the flag escapes, step by step){RESET}\n")
+    try:
+        trace = _run_trace(int(args.level), model, args.secure)
+    except RuntimeError as exc:
+        print(f"{RED}Could not run the attack: {exc}{RESET}")
+        return 1
+    print(trace.render())
+    print()
+    if args.report:
+        with open(args.report, "w") as fh:
+            fh.write(trace.to_markdown() + "\n")
+        print(f"{DIM}Saved trace to {args.report}{RESET}")
+    return 0
+
+
 def _write_report(path: str, rows, runs: int) -> None:
     lines = ["# Agent Heist — model scoreboard",
              "",
@@ -283,6 +314,12 @@ def main() -> int:
     bench_parser.add_argument("--compare", action="store_true", help="also run the attack against the fixed server")
     bench_parser.add_argument("--report", metavar="FILE", help="write a reproducible markdown report")
     bench_parser.set_defaults(func=cmd_bench)
+    trace_parser = sub.add_parser("trace", help="show a step-by-step forensic trace of a level's attack")
+    trace_parser.add_argument("level", help="level number")
+    trace_parser.add_argument("--models", help="model id to run the attack with (default: current model)")
+    trace_parser.add_argument("--secure", action="store_true", help="trace the fixed server to see where a control fires")
+    trace_parser.add_argument("--report", metavar="FILE", help="write the trace as markdown")
+    trace_parser.set_defaults(func=cmd_trace)
 
     args = parser.parse_args()
     try:
