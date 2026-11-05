@@ -13,7 +13,7 @@ from mcp.client.stdio import get_default_environment
 
 from agentheist.agent import Agent
 from agentheist.backends import BackendError
-from agentheist import benchmarks, provenance
+from agentheist import benchmarks, owasp, provenance
 from agentheist.flags import check_flag, find_flags, load_progress, mark_solved
 from agentheist.hints import hint
 from agentheist.levels import LEVELS, Level, get_level
@@ -178,6 +178,38 @@ async def play(level_number: int) -> int:
 
 def cmd_play(args: argparse.Namespace) -> int:
     return asyncio.run(play(args.level))
+
+
+def _print_level_report(number: int) -> None:
+    level = get_level(number)
+    mapping = owasp.for_level(number)
+    print(f"{BOLD}Level {number}: {level.title}{RESET}")
+    if benchmarks.TASK_SUMMARIES.get(number):
+        print(f"  {DIM}Attack:{RESET} {benchmarks.TASK_SUMMARIES[number]}")
+    print(f"  {BOLD}Mapped to:{RESET}")
+    for c in mapping.categories:
+        print(f"    - {c.framework}: {c.label}\n      {DIM}{c.url}{RESET}")
+    print(f"  {BOLD}Root-cause weakness:{RESET} {mapping.weakness}")
+    print(f"  {GREEN}Control (secure reference):{RESET} {mapping.control}\n")
+
+
+def cmd_report(args: argparse.Namespace) -> int:
+    numbers = sorted(owasp.MAPPINGS) if args.level == "all" else [int(args.level)]
+    for n in numbers:
+        get_level(n)  # validate
+        if n not in owasp.MAPPINGS:
+            print(f"{RED}No standards mapping for level {n}.{RESET}")
+            return 1
+    print(f"{BOLD}Agent Heist — level security reports{RESET}  "
+          f"{DIM}(OWASP LLM Top 10, Agentic Security Initiative, MCP spec){RESET}\n")
+    for n in numbers:
+        _print_level_report(n)
+    if args.report:
+        body = "\n".join(owasp.level_markdown(n) for n in numbers)
+        with open(args.report, "w") as fh:
+            fh.write("# Agent Heist — level security reports\n\n" + body + "\n")
+        print(f"{DIM}Saved level report(s) to {args.report}{RESET}")
+    return 0
 
 
 def cmd_submit(args: argparse.Namespace) -> int:
@@ -384,6 +416,10 @@ def main() -> int:
     trace_parser.add_argument("--secure", action="store_true", help="trace the fixed server to see where a control fires")
     trace_parser.add_argument("--report", metavar="FILE", help="write the trace as markdown")
     trace_parser.set_defaults(func=cmd_trace)
+    report_parser = sub.add_parser("report", help="per-level security report mapped to OWASP/MCP standards (offline)")
+    report_parser.add_argument("level", help='level number, or "all"')
+    report_parser.add_argument("--report", metavar="FILE", help="write the report(s) as markdown")
+    report_parser.set_defaults(func=cmd_report)
 
     args = parser.parse_args()
     try:
