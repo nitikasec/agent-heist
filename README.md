@@ -162,8 +162,11 @@ server and a server-side control stopped it on the fixed one; **ENFORCED** — a
 weaker model may still comply; **NOT EXERCISED** — the attack never landed, so the fix wasn't
 tested. This is the honest core of the project: *"the model refused" is not a security control.*
 
-Add `--report board.md` to save a reproducible markdown table (model, target, result per level)
-plus the defence verdicts.
+Add `--report board.md` to save a reproducible markdown report. It records a **provenance block**
+— the provider, model ids, tool version and commit, timestamp, run count, and the exact command to
+re-run — followed by a results table with a **success rate** per cell and the defence verdicts. A
+benchmark number is only worth citing if someone else can reproduce it, and the report says plainly
+that models are nondeterministic, so a rate over several `--runs` is stronger evidence than one cell.
 
 ### Forensic trace: *how* the flag escapes
 
