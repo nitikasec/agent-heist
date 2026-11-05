@@ -17,7 +17,9 @@ from agentheist import benchmarks
 from agentheist.flags import check_flag, find_flags, load_progress, mark_solved
 from agentheist.hints import hint
 from agentheist.levels import LEVELS, Level, get_level
-from agentheist.trace import Trace
+from agentheist.trace import (
+    BROKEN, ENFORCED, ENFORCED_PROVEN, MODEL_DECLINED, Trace, classify_defence,
+)
 from agentheist.web import ATTACKER_HOST, AttackerSite
 
 DIM, BOLD, GREEN, RED, YELLOW, RESET = "\033[2m", "\033[1m", "\033[32m", "\033[31m", "\033[33m", "\033[0m"
@@ -240,10 +242,25 @@ def cmd_bench(args: argparse.Namespace) -> int:
         print(f"  {colors[klass]}{words[klass]}{RESET}  {tag}{model:<26} {DIM}{note}{RESET}")
     print()
 
+    verdicts = []
     if args.compare:
         print(f"{DIM}A good fix flips every LEAKED to safe on the fixed server, whatever the model does.{RESET}\n")
+        print(f"{BOLD}Defence verdict{RESET}  {DIM}(why the fixed server held: a control that fired, or just the model declining?){RESET}")
+        for n in levels:
+            if n not in benchmarks.SECURE_MODULES:
+                continue
+            for model in models:
+                verdict, error = _defence_verdict(n, model)
+                if error:
+                    print(f"  {YELLOW}?{RESET}  Level {n} {model:<26} {DIM}could not run: {error}{RESET}")
+                    continue
+                verdicts.append((n, model, verdict))
+                color = VERDICT_COLORS.get(verdict.kind, YELLOW)
+                print(f"  {color}{verdict.headline}{RESET}  Level {n} {model}\n"
+                      f"       {DIM}{verdict.detail}{RESET}")
+        print()
     if args.report:
-        _write_report(args.report, rows, args.runs)
+        _write_report(args.report, rows, args.runs, verdicts)
         print(f"{DIM}Saved reproducible report to {args.report}{RESET}")
     return 0
 
@@ -260,6 +277,28 @@ def _run_trace(level_number: int, model: str, secure: bool) -> Trace:
     return trace
 
 
+VERDICT_COLORS = {ENFORCED_PROVEN: GREEN, ENFORCED: GREEN, MODEL_DECLINED: YELLOW, BROKEN: RED}
+
+
+def _defence_verdict(level_number: int, model: str):
+    """Run the attack once against both servers (traced) and classify why the fix held.
+
+    Returns (DefenceVerdict, None) or (None, error-message)."""
+    title = get_level(level_number).title
+    task = benchmarks.TASK_SUMMARIES.get(level_number, "")
+    vuln = Trace(level_number, title, model, "vulnerable", task=task)
+    v = asyncio.run(benchmarks.run_one(level_number, model, secure=False, record=vuln.record_tool))
+    if v.error:
+        return None, v.error
+    vuln.finish(v.solved)
+    fixed = Trace(level_number, title, model, "fixed server", task=task)
+    f = asyncio.run(benchmarks.run_one(level_number, model, secure=True, record=fixed.record_tool))
+    if f.error:
+        return None, f.error
+    fixed.finish(f.solved)
+    return classify_defence(fixed, vuln), None
+
+
 def cmd_trace(args: argparse.Namespace) -> int:
     get_level(int(args.level))  # validate
     model = benchmarks.models_from_arg(args.models)[0]
@@ -271,6 +310,11 @@ def cmd_trace(args: argparse.Namespace) -> int:
         return 1
     print(trace.render())
     print()
+    if args.secure:
+        # On the fixed server, say *why* it held: a control that fired, or just the model declining.
+        verdict = classify_defence(trace)
+        color = VERDICT_COLORS.get(verdict.kind, YELLOW)
+        print(f"  {color}Defence: {verdict.headline}{RESET} {DIM}— {verdict.detail}{RESET}\n")
     if args.report:
         with open(args.report, "w") as fh:
             fh.write(trace.to_markdown() + "\n")
@@ -278,7 +322,7 @@ def cmd_trace(args: argparse.Namespace) -> int:
     return 0
 
 
-def _write_report(path: str, rows, runs: int) -> None:
+def _write_report(path: str, rows, runs: int, verdicts=None) -> None:
     lines = ["# Agent Heist — model scoreboard",
              "",
              f"Attacker is fixed; each cell is {runs} run(s). `leaked k/N` = flag captured k of N times.",
@@ -288,6 +332,18 @@ def _write_report(path: str, rows, runs: int) -> None:
     for n, title, model, variant, klass, detail in rows:
         target = "vulnerable" if variant == "attack" else "fixed server"
         lines.append(f"| {n} {title} | `{model}` | {target} | {klass} | {detail} |")
+    if verdicts:
+        lines += ["",
+                  "## Defence verdict",
+                  "",
+                  "Why the fixed server held: a server-side control that fires in code (holds for every "
+                  "model), or merely the model declining (a weaker model may still comply).",
+                  "",
+                  "| Level | Model | Verdict | Why |",
+                  "|---|---|---|---|"]
+        for n, model, verdict in verdicts:
+            why = verdict.detail.replace("|", "\\|")
+            lines.append(f"| {n} {get_level(n).title} | `{model}` | {verdict.headline} | {why} |")
     with open(path, "w") as fh:
         fh.write("\n".join(lines) + "\n")
 
