@@ -13,7 +13,7 @@ from mcp.client.stdio import get_default_environment
 
 from agentheist.agent import Agent
 from agentheist.backends import BackendError
-from agentheist import benchmarks
+from agentheist import benchmarks, provenance
 from agentheist.flags import check_flag, find_flags, load_progress, mark_solved
 from agentheist.hints import hint
 from agentheist.levels import LEVELS, Level, get_level
@@ -203,7 +203,7 @@ def _tally(results, runs):
     leaked = sum(r.solved for r in results)
     errors = [r.error for r in results if r.error]
     if leaked:
-        return "leaked", f"{leaked}/{runs}"
+        return "leaked", f"{leaked}/{runs} ({round(100 * leaked / runs)}% success)"
     if len(errors) == runs:
         return "error", errors[0]
     clean = runs - len(errors)
@@ -260,7 +260,11 @@ def cmd_bench(args: argparse.Namespace) -> int:
                       f"       {DIM}{verdict.detail}{RESET}")
         print()
     if args.report:
-        _write_report(args.report, rows, args.runs, verdicts)
+        prov = provenance.collect(
+            models, args.runs, levels,
+            provenance.reproduce_command(args.level, args.models, args.runs, args.compare),
+        )
+        _write_report(args.report, rows, args.runs, verdicts, prov)
         print(f"{DIM}Saved reproducible report to {args.report}{RESET}")
     return 0
 
@@ -322,13 +326,17 @@ def cmd_trace(args: argparse.Namespace) -> int:
     return 0
 
 
-def _write_report(path: str, rows, runs: int, verdicts=None) -> None:
+def _write_report(path: str, rows, runs: int, verdicts=None, prov=None) -> None:
     lines = ["# Agent Heist — model scoreboard",
              "",
              f"Attacker is fixed; each cell is {runs} run(s). `leaked k/N` = flag captured k of N times.",
-             "",
-             "| Level | Model | Target | Result | Detail |",
-             "|---|---|---|---|---|"]
+             ""]
+    if prov is not None:
+        lines += prov.to_markdown() + [""]
+    lines += ["## Results",
+              "",
+              "| Level | Model | Target | Result | Detail |",
+              "|---|---|---|---|---|"]
     for n, title, model, variant, klass, detail in rows:
         target = "vulnerable" if variant == "attack" else "fixed server"
         lines.append(f"| {n} {title} | `{model}` | {target} | {klass} | {detail} |")
