@@ -42,6 +42,7 @@ LEVELS = {
     2: Level(2, "agentheist.levels.level02_poisoned_page"),
     3: Level(3, "agentheist.levels.level03_helpful_integration"),
     4: Level(4, "agentheist.levels.level04_eager_deputy"),
+    5: Level(5, "agentheist.levels.level05_poisoned_tool"),
 }
 
 
