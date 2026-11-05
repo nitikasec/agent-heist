@@ -95,6 +95,11 @@ hold up against the same attack is half the fun.
 | 5 | The Poisoned Plugin | Tool poisoning: a malicious tool *description* hijacks the agent |
 | 6+ | coming soon | rug-pull tool updates, approval-prompt spoofing, SSRF... |
 
+Every level is mapped to the **OWASP LLM Top 10 (2025)**, the **OWASP Agentic Security Initiative**,
+and the **MCP spec's own security guidance** in [`docs/OWASP_MAPPING.md`](docs/OWASP_MAPPING.md).
+Run `agentheist report <level|all>` for a per-level security report (attack, framework mapping,
+root-cause weakness, and the control the secure reference enforces) — it's offline and needs no model.
+
 **Level 2 is different:** you don't chat with the agent. A simulated victim asks her assistant to
 review a web page, and you write that page. Files you put in `~/.agentheist/level02/site/` are served at
 `http://attacker.example/`, and every request the assistant makes to your site lands in
