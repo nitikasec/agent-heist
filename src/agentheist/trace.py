@@ -15,15 +15,17 @@ carried a secret - so the trace never guesses at intent.
 import json
 import re
 from dataclasses import dataclass, field
-from urllib.parse import urlsplit, unquote, unquote_plus
+from urllib.parse import quote, quote_plus, urlsplit, unquote, unquote_plus
 
 from agentheist.flags import find_flags
 from agentheist.web import ATTACKER_HOST
 
 # Generic secret shapes, redacted to labels. Seeded per run with the level's own flag too.
+# Bearer and flag shapes also match their URL-encoded forms (`%20`/`+`, `%7B`/`%7D`), since an
+# exfil call usually carries the secret inside a query string.
 JWT = re.compile(r"eyJ[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+")
-BEARER = re.compile(r"Bearer\s+\S+")
-FLAGISH = re.compile(r"HEIST\{[^}\s]+\}")
+BEARER = re.compile(r"Bearer(?:\s+|%20|\+)\S+", re.IGNORECASE)
+FLAGISH = re.compile(r"HEIST(?:\{[^}\s]+\}|%7B\S+?%7D)", re.IGNORECASE)
 
 # How a tool output or call is classified in the timeline. Each is directly observable.
 DISCLOSED = "disclosed-secret"      # a tool handed the agent a secret or the flag
@@ -67,7 +69,11 @@ class Redactor:
         if not text:
             return ""
         for value, label in self.rules:
-            text = value.sub(label, text) if isinstance(value, re.Pattern) else text.replace(value, label)
+            if isinstance(value, re.Pattern):
+                text = value.sub(label, text)
+                continue
+            for form in dict.fromkeys((value, quote(value, safe=""), quote_plus(value))):
+                text = text.replace(form, label)
         return text
 
     @classmethod
@@ -126,7 +132,7 @@ class Trace:
                 role=role,
                 host=host,
                 args=self.redactor.apply(raw_args),
-                output=self.redactor.apply(_preview(output)),
+                output=_preview(self.redactor.apply(output)),
             )
         )
 
@@ -159,7 +165,7 @@ class Trace:
             "",
         ]
         if self.task:
-            out += [f"  task  {self.redactor.apply(_preview(self.task))}", ""]
+            out += [f"  task  {_preview(self.redactor.apply(self.task))}", ""]
         if not self.steps:
             out.append("  (the agent made no tool calls)")
         for s in self.steps:
@@ -182,7 +188,7 @@ class Trace:
             f"- **Outcome:** {verdict}",
         ]
         if self.task:
-            lines.append(f"- **Task:** {self.redactor.apply(_preview(self.task))}")
+            lines.append(f"- **Task:** {_preview(self.redactor.apply(self.task))}")
         lines += ["", "| # | Tool | Role | Result |", "|---|---|---|---|"]
         for s in self.steps:
             tool = f"{s.tool}" + (f" ({s.host})" if s.host else "")
